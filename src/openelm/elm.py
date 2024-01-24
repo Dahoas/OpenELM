@@ -3,7 +3,7 @@ from typing import Any, Optional, Type
 from hydra.core.hydra_config import HydraConfig
 
 from openelm.configs import DiffModelConfig, ELMConfig, PromptModelConfig
-from openelm.mutation_model import DiffModel, MutationModel, PromptModel
+from openelm.mutation_model import DiffModel, MutationModel, PromptModel, GPTModel
 from openelm.environments.base import BaseEnvironment
 
 
@@ -40,6 +40,9 @@ def load_env(env_name: str) -> Type[BaseEnvironment]:
         from openelm.environments.poetry import PoetryEvolution
 
         return PoetryEvolution
+    elif env_name == "rl_env":
+        from openelm.environments.rl_env import ELMRLEnv
+        return ELMRLEnv
     else:
         raise ValueError(f"Unknown environment {env_name}")
 
@@ -47,12 +50,13 @@ def load_env(env_name: str) -> Type[BaseEnvironment]:
 def load_algorithm(algorithm_name: str) -> Any:
     if algorithm_name == "mapelites":
         from openelm.algorithms.map_elites import MAPElites
-
         return MAPElites
     elif algorithm_name == "cvtmapelites":
         from openelm.algorithms.map_elites import CVTMAPElites
-
         return CVTMAPElites
+    elif algorithm_name == "fun_search":
+        from openelm.algorithms.fun_search import FunSearch
+        return FunSearch
 
 
 class ELM:
@@ -68,9 +72,8 @@ class ELM:
             env (Optional): An optional environment to pass in. Defaults to None.
         """
         self.config: ELMConfig = config
-        hydra_conf = HydraConfig.instance()
-        if hydra_conf.cfg is not None:
-            self.config.qd.output_dir = HydraConfig.get().runtime.output_dir
+        #hydra_conf = HydraConfig.instance()
+        self.config.qd.output_dir = HydraConfig.get().runtime.output_dir
         env_name: str = self.config.env.env_name
         qd_name: str = self.config.qd.qd_name
         if isinstance(self.config.model, PromptModelConfig):
@@ -78,6 +81,8 @@ class ELM:
         elif isinstance(self.config.model, DiffModelConfig):
             print("Diff model")
             self.mutation_model = DiffModel(self.config.model)
+        elif self.config.model.model_type == "gptquery":
+            self.mutation_model = GPTModel(self.config.model)
         if env is None:
             self.environment = load_env(env_name)(
                 config=self.config.env,

@@ -10,6 +10,8 @@ class BaseConfig:
     output_dir: str = "logs/"
 
 
+######## Model Configs ########
+
 @dataclass
 class ModelConfig(BaseConfig):
     fp16: bool = True
@@ -20,7 +22,7 @@ class ModelConfig(BaseConfig):
     top_p: float = 0.95
     temp: float = 1.1
     gen_max_len: int = 512
-    batch_size: int = 10
+    batch_size: int = 1
     model_type: str = "hf"  # Can be "hf", "openai", etc
     model_path: str = MISSING  # Can be HF model name or path to local model
     logits_only: bool = False
@@ -33,8 +35,12 @@ class ModelConfig(BaseConfig):
 
 @dataclass
 class PromptModelConfig(ModelConfig):
-    model_name: str = "prompt"
-    model_path: str = "Salesforce/codegen-350M-mono"
+    model_name: str = "gpt-3.5-turbo-1106"
+    model_path: str = "gpt-3.5-turbo-1106"
+    model_type: str = "openai"
+    gen_max_len: int = 4096
+    temperature: float = 1.0
+    top_p: float = 1.0
 
 
 @dataclass
@@ -42,6 +48,8 @@ class DiffModelConfig(ModelConfig):
     model_name: str = "diff"
     model_path: str = "CarperAI/diff-codegen-350m-v2"
 
+
+######## Algorithm Configs ########
 
 @dataclass
 class QDConfig(BaseConfig):
@@ -70,6 +78,22 @@ class CVTMAPElitesConfig(QDConfig):
     n_niches: int = 12
     cvt_samples: int = 10000
 
+
+@dataclass
+class FunSearchConfig(QDConfig):
+    qd_name: str = "fun_search"
+    init_steps: int = 10
+    total_steps: int = 100
+    log_stats_steps: int = 25
+
+    database_config = dict(functions_per_prompt=1,
+                           num_islands=10,
+                           reset_period=50,
+                           cluster_sampling_temperature_init=0.1,
+                           cluster_sampling_temperature_period=30_000,)
+
+
+######## Environment Configs ########
 
 @dataclass
 class EnvConfig(BaseConfig):
@@ -156,13 +180,34 @@ class PromptEnvConfig(EnvConfig):
     evals_per_prompt: int = 10
 
 
+@dataclass
+class RLEnvConfig(EnvConfig):
+    # RL env params
+    env_name: str = "rl_env"
+    rl_env_name: str = MISSING  # Name of rl env in gynmasium
+    task_description: str = MISSING  # Description of task fed to LLM
+    observation_description: str = MISSING  # Description of state space fed to LLM
+    action_description: str = MISSING  # Description of action space fed to LLM
+    reward_description: str = MISSING  # Description of rewards
+    action_exemplar: str = MISSING  # Example sequence of (annotated) actions
+    api_description: str = ""  # Description of apis model can use to solve task
+
+    batch_size: int = 1
+
+    # Params used to compute policy fitness
+    num_eval_rollouts: int = 10
+    horizon: int = 100  # Max len of env trajectory
+    discount: float = 1.0  # Discount factor
+
+
+######## ELM Config ########
+    
 defaults_elm = [
     {"model": "prompt"},
-    {"qd": "mapelites"},
-    {"env": "sodarace"},
+    {"qd": "fun_search"},
+    {"env": "rl_env"},
     "_self_",
 ]
-
 
 @dataclass
 class ELMConfig(BaseConfig):
@@ -227,8 +272,10 @@ def register_configstore() -> ConfigStore:
     cs.store(group="env", name="p3_problem", node=P3ProblemEnvConfig)
     cs.store(group="env", name="prompt_evolution", node=PromptEnvConfig)
     cs.store(group="env", name="qdaif", node=QDEnvConfig)
+    cs.store(group="env", name="rl_env", node=RLEnvConfig)
     cs.store(group="qd", name="mapelites", node=MAPElitesConfig)
     cs.store(group="qd", name="cvtmapelites", node=CVTMAPElitesConfig)
+    cs.store(group="qd", name="fun_search", node=FunSearchConfig)
     cs.store(group="model", name="prompt", node=PromptModelConfig)
     cs.store(group="model", name="diff", node=DiffModelConfig)
     cs.store(name="elmconfig", node=ELMConfig)

@@ -3,14 +3,14 @@ import os
 import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 import numpy as np
 import torch
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
 from langchain.llms.base import LLM
-from langchain.schema import Generation, LLMResult
+from langchain.schema import Generation, LLMResult, HumanMessage
 from pydantic import Extra, root_validator
 from transformers import BatchEncoding
 
@@ -48,6 +48,29 @@ class MutationModel(ABC):
     @abstractmethod
     def generate_programs(self, *args, **kwargs) -> list[str]:
         raise NotImplementedError
+    
+
+class GPTModel(MutationModel):
+    def __init__(self, config: ModelConfig):
+        self.config = config
+        from gptquery.gpt import GPT
+        self.model = GPT(model_name=config.model_path,
+                         temperature=config.temp,
+                         max_num_tokens=config.gen_max_len,
+                         mb_size=config.batch_size,
+                         task_prompt_text="{prompt}",
+                         log=False,
+                         verbose=True,
+                         oai_key="YOUR_KEY_HERE",)
+        
+    def generate_programs(self, prompt_dicts: List[dict[str, str]]) -> list[str]:
+        """
+        Generates programs using prompts in prompt_dicts.
+        + prompt_dicts: List of dicts with "prompt" field
+        """
+        results = self.model(prompt_dicts)
+        responses = [res["response"] for res in results]
+        return responses
 
 
 class PromptModel(MutationModel):
@@ -59,6 +82,19 @@ class PromptModel(MutationModel):
         # Use RNG to rotate random seeds during inference.
         self.rng = np.random.default_rng(seed=seed)
         self.model: LLM = get_model(self.config)
+
+    def generate(self, prompts: List[str],) -> List[str]:
+        prompts = [[HumanMessage(content=prompt)] for prompt in prompts]  # Must reshape into list of list of messages
+        results = self.model.generate(prompts)
+        print("RESULTS")
+        print(results)
+        exit()
+        for prompt in prompts:
+            results.append(self.model.generate([[prompt]]))
+        completions = [
+            llmresult.generations[0][0].text for llmresult in results
+        ]
+        return completions
 
     def generate_programs(
         self,
