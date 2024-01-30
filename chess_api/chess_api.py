@@ -10,15 +10,16 @@ class Game:
         self.stockfish = Stockfish(stockfish_path)
         self.player2_difficulty = 1  # Default difficulty level
 
-    def start_game(self):
+    def reset(self):
+        # TODO: rename to `reset`
         self.board.reset()
         self.moves.clear()
         self.winner = None
         self.stockfish.set_position([])  # Reset Stockfish to the initial position
+        return self.board, None  # observation, __
 
-
-
-    def turn(self, move_str):
+    def step(self, move_str):
+        # TODO: rename to `step()` 
         try:
             move = chess.Move.from_uci(move_str)
             if move in self.board.legal_moves:
@@ -35,13 +36,6 @@ class Game:
         except ValueError:
             return 'invalid move format'
 
-
-
-    def turn(self, move_str):
-        # Existing implementation...
-        # After Player 1's move, call player2 for Stockfish's move
-        if self.board.turn == chess.BLACK:  # Check if it's Player 2's turn
-            return self.player2()
 
     def player2(self):
         self.stockfish.set_skill_level(self.player2_difficulty)
@@ -89,7 +83,7 @@ class Game:
 if __name__ == "__main__":
     # Initialize the game with the path to your Stockfish binary
     game = Game("/usr/local/bin/stockfish")
-    game.start_game()
+    game.reset()
 
     turn_limit = 10  # Set the turn limit as desired
 
@@ -100,7 +94,7 @@ if __name__ == "__main__":
             move_result = game.human_player(move)
             print(move_result)
         else:  # Stockfish's turn
-            move_result = game.turn(game.player2())
+            move_result = game.step(game.player2())
             print("Stockfish move:", move_result)
 
         if move_result == 'checkmate':
