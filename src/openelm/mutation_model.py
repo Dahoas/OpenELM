@@ -54,6 +54,7 @@ class GPTModel(MutationModel):
     def __init__(self, config: ModelConfig):
         self.config = config
         from gptquery.gpt import GPT
+        google_key = "AIzaSyARcyOX4FwQXrYBvwp1M9zNg5Ntw9uORaE"
         self.model = GPT(model_name=config.model_path,
                          temperature=config.temp,
                          max_num_tokens=config.gen_max_len,
@@ -61,7 +62,8 @@ class GPTModel(MutationModel):
                          task_prompt_text="{prompt}",
                          log=False,
                          verbose=True,
-                         oai_key="YOUR_KEY_HERE",)
+                         oai_key="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",
+                         keys=dict(PALM_API_KEY=google_key, GEMINI_API_KEY=google_key),)
         
     def generate_programs(self, prompt_dicts: List[dict[str, str]]) -> list[str]:
         """

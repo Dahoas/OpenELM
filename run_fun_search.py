@@ -23,20 +23,23 @@ from rl_env_descriptions import envs
     config_name="elmconfig",
 )
 def main(config):
-    rl_env_name = "MiniGrid-BlockedUnlockPickup-v0"
+    rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
     config.output_dir = HydraConfig.get().runtime.output_dir
     config.model = ModelConfig(model_type="gptquery",
-                               model_path="gpt-4-turbo-1106-preview",#"gpt-3.5-turbo-1106",
+                               model_path="gpt-3.5-turbo-1106",#"palm/chat-bison",#"gpt-4-1106-preview",#"gpt-3.5-turbo-1106",
                                gen_max_len=4096,
                                temp=1.0,
                                batch_size=1,)
-    config.qd = FunSearchConfig()
+    config.qd = FunSearchConfig()  # seed_policies_dir="/mnt/c/Users/alexd/Projects/Research/OpenELM/seed_policies/"
+    unwrapped_rl_env_name = rl_env_name.replace("-wrapped", "")
     config.env = RLEnvConfig(rl_env_name=rl_env_name,
-                             task_description=envs[rl_env_name]["task_description"],
-                             observation_description=envs[rl_env_name]["observation_description"],
-                             action_description=envs[rl_env_name]["action_description"],
-                             reward_description=envs[rl_env_name]["reward_description"],
-                             action_exemplar=envs[rl_env_name]["action_exemplar"],)
+                             task_description=envs[unwrapped_rl_env_name]["task_description"],
+                             observation_description=envs[unwrapped_rl_env_name]["observation_description"],
+                             action_description=envs[unwrapped_rl_env_name]["action_description"],
+                             reward_description=envs[unwrapped_rl_env_name]["reward_description"],
+                             action_exemplar=envs[unwrapped_rl_env_name]["action_exemplar"],
+                             api_description=envs[unwrapped_rl_env_name]["api_description"],
+                             api_list=envs[unwrapped_rl_env_name]["api_list"],)
 
     print("----------------- Config ---------------")
     print(OmegaConf.to_yaml(config))

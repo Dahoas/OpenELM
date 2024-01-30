@@ -8,6 +8,7 @@ import numpy as np
 
 from openelm.environments.base import BaseEnvironment, Genotype, Phenotype
 from openelm.algorithms.fun_search import Program
+from openelm.environments.rl_env_util.env_wrappers import get_wrapped_env
 
 import gymnasium as gym
 
@@ -42,8 +43,9 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         self.config = config
         self.batch_size = self.config.batch_size
         self.mutation_model = mutation_model
+        self.api_list = self.config.api_list
         
-        self.env = gym.make(self.config.rl_env_name)
+        self.env = get_wrapped_env(self.config.rl_env_name)  #gym.make(self.config.rl_env_name)
 
     def get_rng_state(self) -> Optional[np.random._generator.Generator]:
         warnings.warn("WARNING: rng state not used in this environment")
@@ -77,6 +79,10 @@ In particular you can assume access to the following APIs: \
 {self.config.api_description}\n\n\
 You should only write the Policy class and nothing else. \
 You are encouraged to be as creative as possible, do not simply copy one of the exemplars if given. \
+Your policy should also be robust to adversity. If it finds itself getting stuck, repeating the same moves, \
+it should try something new. Exploration is encouraged, but keep in mind the goal and the action preconditions.\
+Make sure when you are engaging in exploration, it is diverse and incentivizing discovery of new states.\n\
+Thank carefully about the order of steps you propose. Executing the right steps in the wrong order will be costly\n\
 All code should be written in a single, large code block.
 """
         if exemplars is not None:
@@ -107,7 +113,10 @@ All code should be written in a single, large code block.
         return new_programs
     
     def _extract_executable_policy(self, program: Program):
-        source = f"{program.src}\n\npolicy = Policy()"
+        api_imports = ""
+        for api in self.api_list:
+            api_imports += f"from openelm.environments.rl_env_util.api_lib import {api}\n"
+        source = f"{api_imports}{program.src}\n\npolicy = Policy()"
         result = dict()
         exec(source, result)
         return result["policy"]

@@ -247,6 +247,19 @@ class FunSearch:
            best_program="",
         )
         self.stats_log_file = os.path.join(config.output_dir, "stats.jsonl")
+
+        # Load seed policies if available
+        if self.config.seed_policies_dir is not None:
+           path = pathlib.Path(self.config.seed_policies_dir)
+           seed_policy_files = path.glob("*")
+           for seed_policy_file in seed_policy_files:
+                print(f"Initializing with {seed_policy_file}...")
+                with open(seed_policy_file, "r") as f:
+                    src = "\n".join(f.readlines())
+                    program = Program(src)
+                    fitness = self.env.fitness(program)
+                    island_ids = list(range(len(self.database.islands)))
+                    self.database.add(program, fitness, island_ids=island_ids)
         print("Loading finished!")
 
     def random_selection(self):
@@ -274,7 +287,7 @@ class FunSearch:
         """
         total_steps = int(total_steps)
         for n_steps in range(total_steps):
-            if n_steps < init_steps:
+            if n_steps < init_steps and self.config.seed_policies_dir is None:
                 # Initialise by generating initsteps random solutions
                 new_individuals: List[Program] = self.env.random()
                 # Each initial program spreads to all islandsd
@@ -304,4 +317,5 @@ class FunSearch:
                print(json.dumps(self.stats, indent=2))
                with open(self.stats_log_file, "a+") as f:
                   json.dump(self.stats, f)
+                  f.write("\n")
             
