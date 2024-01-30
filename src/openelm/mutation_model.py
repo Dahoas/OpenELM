@@ -19,6 +19,9 @@ from openelm.configs import ModelConfig
 from openelm.utils.diff_eval import apply_diff, split_diff
 
 
+openai_api = os.environ.get("OPENAI_API") 
+print(f"\nOPENAI_API: {openai_api[:5]}...\n")
+
 def get_model(config: ModelConfig):
     if config.model_type == "hf":
         return HuggingFaceLLM(config=config)
@@ -61,7 +64,7 @@ class GPTModel(MutationModel):
                          task_prompt_text="{prompt}",
                          log=False,
                          verbose=True,
-                         oai_key="YOUR_KEY_HERE",)
+                         oai_key=openai_api)
         
     def generate_programs(self, prompt_dicts: List[dict[str, str]]) -> list[str]:
         """

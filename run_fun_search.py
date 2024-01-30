@@ -26,7 +26,7 @@ def main(config):
     rl_env_name = "MiniGrid-BlockedUnlockPickup-v0"
     config.output_dir = HydraConfig.get().runtime.output_dir
     config.model = ModelConfig(model_type="gptquery",
-                               model_path="gpt-4-turbo-1106-preview",#"gpt-3.5-turbo-1106",
+                               model_path="gpt-4-1106-preview",#"gpt-3.5-turbo-1106",
                                gen_max_len=4096,
                                temp=1.0,
                                batch_size=1,)
