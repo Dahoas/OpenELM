@@ -12,6 +12,7 @@ from openelm.algorithms.fun_search import Program
 import gymnasium as gym
 
 
+
 class PolicyGenotype(Genotype):
     def __init__(self, 
                  policy_str: str,):
@@ -42,7 +43,8 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         self.config = config
         self.batch_size = self.config.batch_size
         self.mutation_model = mutation_model
-        
+
+         
         self.env = gym.make(self.config.rl_env_name)
 
     def get_rng_state(self) -> Optional[np.random._generator.Generator]:
@@ -54,29 +56,20 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         pass
 
     def _construct_prompt(self, exemplars: Optional[list[Program]] = None):
-        prompt = f""
         prompt = f"""\
-You are responsible for designing a decision policy to solve the following task: 
+You are responsible for designing a value function to solve the following task: 
 {self.config.task_description}\n\n\
-You will write a python `Policy()`, which should be initializable without any parameters from the user, object which has two methods:
-- `def act(observation)` which takes in an observation and returns an action.
-- `update(observation, action, reward, next_observation)` which takes in the current observation, \
-chosen action, reward, and next_observation and updates any persistent memory/state between observations. \
+You will write a python `Value`, which should be initializable without any parameters from the user, object which has one method:
+- `def value(observation)` which takes in an observation and returns the value of the observation
 Note: You should not assume any exploration outside of what is learned during the agent's single rollout in \
-the environment. This means you should not rely on Q-learning, etc.\n\n\
+the environment. This means you should not rely on Q-learning, requiring extra exploration.\n\n\
 The observation space is defined formally as: 
 {self.config.observation_description}\n\n\
-The action space is defined formally as:
-{self.config.action_description}\n\n\
-The rewards are defined formally as:
-{self.config.reward_description}\n\n\
-Consider the following example action sequence to familiairize yourself with the env dynamics\n\n\
-{self.config.action_exemplar}\n\n\
 You are allowed to use any python library you want but should not assume access \
 to any other external resources (such as models with downloadable weights) unless otherwise specified. \
 In particular you can assume access to the following APIs: \
 {self.config.api_description}\n\n\
-You should only write the Policy class and nothing else. \
+You should only write the Value class and nothing else. \
 You are encouraged to be as creative as possible, do not simply copy one of the exemplars if given. \
 All code should be written in a single, large code block.
 """

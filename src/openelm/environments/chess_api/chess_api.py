@@ -2,6 +2,16 @@ import argparse
 from stockfish import Stockfish
 import chess
 
+from reward import Reward 
+
+STOCKFISH_PATH = "/usr/local/bin/stockfish"
+
+# TODO: 
+# - see which rewards correlate with each other 
+# - are there any combinations of the heuristics (e.g. weighted sums) that correlate with expert()?
+
+
+
 class Game:
     def __init__(self, stockfish_path):
         self.board = chess.Board()
@@ -9,6 +19,8 @@ class Game:
         self.winner = None
         self.stockfish = Stockfish(stockfish_path)
         self.player2_difficulty = 1  # Default difficulty level
+        self.reward = Reward(stockfish_path=stockfish_path).expert() 
+
 
     def reset(self):
         # TODO: rename to `reset`
@@ -19,7 +31,19 @@ class Game:
         return self.board, None  # observation, __
 
     def step(self, move_str):
-        # TODO: rename to `step()` 
+        """
+        return 
+            observation: chess.Board
+            reward: float (in [-1,1])
+            terminated: bool 
+            _: None 
+            _: None 
+        """
+        # TODO: output must be 
+        # observation, reward, terminated, _, _ 
+        # see rl_env.py fitness()
+        # TODO: define self.signal function to 
+        # assign rewards
         try:
             move = chess.Move.from_uci(move_str)
             if move in self.board.legal_moves:
@@ -30,11 +54,13 @@ class Game:
                     return 'checkmate'
                 # After Player 1's move, call player2 for Stockfish's move
                 if self.board.turn == chess.BLACK:  # Check if it's Player 2's turn
-                    return self.player2()
+                    self.player2()
+                    rw= self.reward(self.board)
+                    return self.board, rw, False, None, None
             else:
-                return 'illegal move'
+                return self.board, -1, True, None, None
         except ValueError:
-            return 'invalid move format'
+            return self.board, -1, True, None, None
 
 
     def player2(self):
@@ -82,7 +108,7 @@ class Game:
 
 if __name__ == "__main__":
     # Initialize the game with the path to your Stockfish binary
-    game = Game("/usr/local/bin/stockfish")
+    game = Game(STOCKFISH_PATH)
     game.reset()
 
     turn_limit = 10  # Set the turn limit as desired

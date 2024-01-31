@@ -1,4 +1,85 @@
 envs = {
+    "chess": dict( 
+        task_description="""
+        You are a chess world champion. Win the chess game. You have no time constraints.  
+""", 
+        observation_description="""
+        observation: chess.Boards() object from the python-chess library. It has the following attributes which may be useful:
+        
+        move_stack: List[Move]
+        The move stack. Use Board.push(), Board.pop(), Board.peek() and Board.clear_stack() for manipulation.
+
+        propertylegal_moves: LegalMoveGenerator
+        A dynamic list of legal moves.
+
+        import chess
+
+        board = chess.Board()
+        board.legal_moves.count()
+        20
+        bool(board.legal_moves)
+        True
+        move = chess.Move.from_uci("g1f3")
+        move in board.legal_moves
+        True
+        Wraps generate_legal_moves() and is_legal().
+
+
+        checkers()→ SquareSet[source]
+        Gets the pieces currently giving check.
+
+        Returns a set of squares.
+
+
+        is_check()→ bool[source]
+        Tests if the current side to move is in check.
+
+        gives_check(move: Move)→ bool[source]
+        Probes if the given move would put the opponent in check. The move must be at least pseudo-legal.
+
+
+        is_checkmate()→ bool[source]
+        Checks if the current position is a checkmate.
+
+        is_stalemate()→ bool[source]
+        Checks if the current position is a stalemate.
+
+        is_insufficient_material()→ bool[source]
+        Checks if neither side has sufficient winning material (has_insufficient_material()).
+
+        has_insufficient_material(color: chess.Color)→ bool[source]
+        Checks if color has insufficient winning material.
+
+        This is guaranteed to return False if color can still win the game.
+
+        The converse does not necessarily hold: The implementation only looks at the material, including the colors of bishops, but not considering piece positions. So fortress positions or positions with forced lines may return False, even though there is no possible winning line.
+
+
+        find_move(from_square: chess.Square, to_square: chess.Square, promotion: chess.PieceType | None = None)→ Move[source]
+        Finds a matching legal move for an origin square, a target square, and an optional promotion piece type.
+
+        For pawn moves to the backrank, the promotion piece type defaults to chess.QUEEN, unless otherwise specified.
+
+        Castling moves are normalized to king moves by two steps, except in Chess960.
+
+        Raises
+        :
+        IllegalMoveError if no matching legal move is found.
+""", 
+        api_description="""
+        None
+""", 
+        action_description="""
+        None
+""",
+        reward_description="""
+        None
+""",
+        action_exemplar="""
+        None
+"""
+    ), 
+
     "Blackjack-v1": dict(
         task_description="""Win the blackjack hand. Each round will be separate, independent of the ones before.
 """,
@@ -7,12 +88,18 @@ observation[0] = The sum of your cards\n\
 observation[1] = The dealer's showing card sum.\n\
 observation[2] = True if you have an Ace, False otherwise\n\
 """,
-        action_description="""action: bool where:
-action = True if you hit, False if you stay
+     action_description="""action: str \n\
+chess notation for player1's move. \n\
 """,
-        reward_description="""1 if you win and 0 otherwise.
+        reward_description="""A reward of between -1 and 1 is given for each move. Takes into account: number of pieces captured, piece mobility, pawn structure
+         , king safety, control of center of board, how well balanced 
+           the pieces are around the board.  \n\
 """,
-        action_exemplar="""
+        action_exemplar="""\
+- a_1 = "e2e4"  # Player 1 moves pawn from e2 to e4
+- a_2 = "e7e5"  # Player 2 moves pawn from e7 to e5
+- a_3 = "g1f3"  # Player 1 moves knight from g1 to f3
+- a_4 = "b8c6"  # Player 2 moves knight from b8 to c6
 """,
     ),
 
