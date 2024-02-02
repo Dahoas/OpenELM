@@ -202,12 +202,12 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         trajectories: List[List[Any]] = []
         for _ in range(self.config.num_eval_rollouts):
             t = time()
+            trajectory = []
             try:
                 seed = np.random.randint(0, 1e9)
                 observation, _ = env.reset(seed=seed)
                 policy = self._extract_executable_policy(program)
                 rewards = []
-                trajectory = []
                 for _ in range(self.config.horizon):
                     action = policy.act(observation)
                     trajectory.append(action)
