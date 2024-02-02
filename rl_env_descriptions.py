@@ -83,20 +83,16 @@ observation['image'][2] to the left and observation['image'][4] to the right and
 - 5: toggle key to open door, Precondition: Must have key and be facing the door (door is on observation['image'][3][5])
 """,
         reward_description="""A reward of ‘1 - 0.9 * (step_count / max_steps)’ is given for success, and ‘0’ for failure.\
-+0.1 for picking up the key for the first time. +0.2 for opening the door.
++0.1 for picking up the key for the first time. +0.2 for opening the door, +0.1 if gone through door.
 """,
         action_exemplar="""
 """,
         api_description="""\
-def move_towards(target_position, next_tile):
-    target_x, target_y = target_position
-    if target_y < 6 and next_tile[0] == 1:
-        return 2  # If target is in front of me and the next stil is empty, go forward
-    else:
-        if target_x < 3:
-            return 0  # If target is to my left, turn left
-        else:
-            return 1  # If target is to my right, turn right
+def move_towards(target_position: Tuple[int, int], next_tile: Tuple[int, int, int]):\
+    "\
+    Move your agent toward the target position `target_position` given in (x,y) coords.
+    next_tile is the tile corresponding to observation["image"][3][5] (i.e. the tile in front of you)
+    "
 """,
         api_list=["move_towards"],
     ),

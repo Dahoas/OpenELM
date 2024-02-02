@@ -88,7 +88,8 @@ All code should be written in a single, large code block.
         if exemplars is not None:
             demo = "Examples of policies: \n\n\n"
             for exemplar in exemplars:
-                demo += f"```python\n{exemplar.src}```" + "\n\n\n"
+                demo += f"```python\n{exemplar.src}```" + "\n\n"
+                demo += f"The average return for the policy is: {exemplar.fitness}. You should optionally use this to determine how to improve/fix the policy.\n\n"
             prompt += demo
 
         return prompt

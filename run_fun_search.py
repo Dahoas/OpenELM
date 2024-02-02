@@ -30,7 +30,7 @@ def main(config):
                                gen_max_len=4096,
                                temp=1.0,
                                batch_size=1,)
-    config.qd = FunSearchConfig()  # seed_policies_dir="/mnt/c/Users/alexd/Projects/Research/OpenELM/seed_policies/"
+    config.qd = FunSearchConfig(seed_policies_dir="/mnt/c/Users/alexd/Projects/Research/OpenELM/seed_policies/minigrid_pickup/")  # seed_policies_dir="/mnt/c/Users/alexd/Projects/Research/OpenELM/seed_policies/minigrid_pickup/"
     unwrapped_rl_env_name = rl_env_name.replace("-wrapped", "")
     config.env = RLEnvConfig(rl_env_name=rl_env_name,
                              task_description=envs[unwrapped_rl_env_name]["task_description"],
