@@ -26,12 +26,13 @@ def main(config):
     rl_env_name = "chess"
     config.output_dir = HydraConfig.get().runtime.output_dir
     config.model = ModelConfig(model_type="gptquery",
-                               model_path="gpt-4-1106-preview",#"gpt-3.5-turbo-1106",
+                               model_path="gpt-3.5-turbo-1106",#"gpt-3.5-turbo-1106",
                                gen_max_len=4096,
                                temp=1.0,
                                batch_size=1,)
     config.qd = FunSearchConfig()
     config.env = RLEnvConfig(rl_env_name=rl_env_name,
+                             task_type="value",
                              task_description=envs[rl_env_name]["task_description"],
                              observation_description=envs[rl_env_name]["observation_description"],
                              action_description=envs[rl_env_name]["action_description"],

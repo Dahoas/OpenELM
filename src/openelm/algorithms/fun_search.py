@@ -245,6 +245,8 @@ class FunSearch:
            best_step=0,
            best_fitness=-np.inf,
            best_program="",
+           eval_runtimes=[],
+           fitness_runtimes=[],
         )
         self.stats_log_file = os.path.join(config.output_dir, "stats.jsonl")
         print("Loading finished!")
@@ -289,11 +291,14 @@ class FunSearch:
 
             for individual, island_ids in zip(new_individuals, island_ids_list):
                 # Evaluate fitness
-                fitness = self.env.fitness(individual)
+                res = self.env.fitness(individual)
+                fitness = res["fitness"]
                 if np.isinf(fitness):
                     continue
                 self.database.add(individual, fitness, island_ids=island_ids)
                 # Update stats
+                self.stats["eval_runtimes"] += res["eval_runtimes"]
+                self.stats["fitness_runtimes"].append(sum(res["eval_runtimes"]))
                 if fitness > self.stats["best_fitness"]:
                    self.stats["best_fitness"] = fitness
                    self.stats["best_program"] = individual.src
@@ -301,6 +306,13 @@ class FunSearch:
 
             self.stats["step"] = n_steps
             if n_steps % self.config.log_stats_steps == 0 and n_steps > 1:
+               stats = deepcopy(self.stats)
+               eval_runtimes = stats.pop("eval_runtimes")
+               stats["eval_runtime_avg"] = np.mean(eval_runtimes)
+               stats["eval_runtime_std"] = np.std(eval_runtimes)
+               fitness_runtimes = stats.pop("fitness_runtimes")
+               stats["fitness_runtime_avg"] = np.mean(fitness_runtimes)
+               stats["fitness_runtime_std"] = np.std(fitness_runtimes)
                print(json.dumps(self.stats, indent=2))
                with open(self.stats_log_file, "a+") as f:
                   json.dump(self.stats, f)

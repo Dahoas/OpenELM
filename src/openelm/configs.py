@@ -184,6 +184,7 @@ class PromptEnvConfig(EnvConfig):
 class RLEnvConfig(EnvConfig):
     # RL env params
     env_name: str = "rl_env"
+    task_type: str = "policy"  # What the code generated will represent (Options: policy, value)
     rl_env_name: str = MISSING  # Name of rl env in gynmasium
     task_description: str = MISSING  # Description of task fed to LLM
     observation_description: str = MISSING  # Description of state space fed to LLM

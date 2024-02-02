@@ -1,7 +1,7 @@
 envs = {
     "chess": dict( 
         task_description="""
-        You are a chess world champion. Win the chess game. You have no time constraints.  
+        You are a chess world champion. Win the chess game. You are playing white. You have no time constraints.  
 """, 
         observation_description="""
         observation: chess.Boards() object from the python-chess library. It has the following attributes which may be useful:
@@ -11,6 +11,7 @@ envs = {
 
         propertylegal_moves: LegalMoveGenerator
         A dynamic list of legal moves.
+        Note: To use this as a list you will need to do list(board.legal_moves)
 
         import chess
 

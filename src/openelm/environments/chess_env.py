@@ -2,46 +2,74 @@ import gymnasium as gym
 from gymnasium import spaces
 import chess
 from stockfish import Stockfish
+from typing import List
 
-from chess_api.reward import Reward 
 
-STOCKFISH_PATH = "/usr/local/bin/stockfish"
+STOCKFISH_PATH = "/mnt/c/Users/alexd/Projects/stockfish-ubuntu-x86-64-modern/stockfish/stockfish-ubuntu-x86-64-modern"
 
 class ChessEnv(gym.Env):
-    def __init__(self):
+    """ 
+    Implements chess gym environment for white player. Black player is stockfish with a preset difficulty level.
+    """
+    def __init__(self,
+                 stockfish_skill: int=1,):
+        """ 
+        + stockfish_skill: Difficulty of stockfish opponent.
+            - 1 -> 1350 ELO
+        """
         super(ChessEnv, self).__init__()
         self.board = chess.Board()
-        self.moves = []
-        self.winner = None
-        self.stockfish = Stockfish(STOCKFISH_PATH)
-        self.stockfish.set_skill_level(1)  # Default difficulty level
-        self.reward = Reward(stockfish_path=STOCKFISH_PATH).expert()
+        self.moves: List[chess.Move] = []
+        self.stockfish: Stockfish = Stockfish(STOCKFISH_PATH)
+        self.stockfish.set_skill_level(stockfish_skill)
         
         # Define action and observation spaces
         self.action_space = spaces.Discrete(len(list(self.board.legal_moves)))  # Number of legal moves
         self.observation_space = spaces.Box(low=0, high=1, shape=(8, 8, 6), dtype=int)  # 8x8 board with 6 piece types
 
-    def reset(self):
+    def reset(self, seed):
         self.board.reset()
         self.moves.clear()
-        self.winner = None
         self.stockfish.set_position([])  # Reset Stockfish to the initial position
-        return self._get_observation()
+        info = dict()
+        return self._get_observation(), info
+    
+    def deepcopy(self):
+        copy_env = ChessEnv()
+        copy_env.board = self.board
+        copy_env.moves = self.moves
+        copy_env.stockfish.set_position(self.moves)
+        return copy_env
+    
+    def get_actions(self):
+        return self.board.legal_moves
 
-    def step(self, action):
+    def step(self, action: chess.Move):
         # Convert action index to a chess move
         legal_moves = list(self.board.legal_moves)
-        try:
-            move = legal_moves[action]
-            self.board.push(move)
-            self.moves.append(move)
-        except IndexError:
-            return self._get_observation(), -1, True, {'reason': 'invalid move'}
-
-        done = self.board.is_game_over()
-        reward = self.reward(self.board)
-        info = {}
-        return self._get_observation(), reward, done, info
+        if action in legal_moves:
+            self.board.push(action)
+            self.moves.append(action)
+            done = self.board.is_game_over()
+            info = dict()
+            if done:
+                reward = int(self.board.is_checkmate())
+                return self._get_observation(), reward, done, info, info
+            else:
+                # Make move by opponent
+                self.stockfish.set_position([move.uci() for move in self.moves])
+                stockfish_move = self.stockfish.get_best_move()
+                stockfish_move = chess.Move.from_uci(stockfish_move)
+                self.board.push(stockfish_move)
+                self.moves.append(stockfish_move)
+                done = self.board.is_game_over()
+                reward = -int(self.board.is_checkmate())
+                return self._get_observation(), reward, done, info, info
+        else:
+            done = True
+            reward = -1
+            info = {'reason': 'invalid move'}
+            return self._get_observation(), reward, done, info, info
 
     def render(self, mode='human'):
         # Implement rendering (e.g., print the board state)
@@ -49,15 +77,4 @@ class ChessEnv(gym.Env):
 
     def _get_observation(self):
         # Convert the board to a matrix or other representation suitable for your observation space
-        return self._board_to_matrix()
-
-    def _board_to_matrix(self):
-        # Implement the logic to convert the chess board to a matrix or another suitable format
-        return list(map(lambda x: x.split(" "), str(board).split("\n")))
-        
-
-# Register the environment
-gym.register(
-    id='chess',
-    entry_point='chess_env:ChessEnv',  # Replace 'your_module' with the actual module where `ChessEnv` is defined
-)
+        return self.board
