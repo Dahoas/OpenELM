@@ -94,6 +94,7 @@ class RLValuePolicy(RLPolicy):
             value = self.value_fn.value(observation)
             action_dict[action] = reward if reward != 0 else value
         action_ind = np.argmax(list(action_dict.values()))
+
         return list(action_dict.keys())[action_ind]
 
     def act(self, observation):
@@ -104,6 +105,13 @@ class RLValuePolicy(RLPolicy):
         
     def update(self, old_observation, action, reward, observation):
         pass
+    
+
+def get_rl_env(rl_env_name, render_mode):
+    if rl_env_name == "chess":
+        from openelm.environments.chess_env import ChessEnv
+        return ChessEnv(render_mode=render_mode)
+    return gym.make(rl_env_name, render_mode=render_mode)
     
 
 class PolicyGenotype(Genotype):
@@ -123,7 +131,8 @@ class PolicyGenotype(Genotype):
 class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
     def __init__(self,
                  config,
-                 mutation_model,):
+                 mutation_model,
+                 render_mode=None,):
         """
         The objective is to generate well-performing python policies 
         for the given environment.
@@ -137,7 +146,7 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         self.batch_size = self.config.batch_size
         self.mutation_model = mutation_model
         self.task_type = TaskType.from_string(self.config.task_type)
-        self.env = gym.make(self.config.rl_env_name)
+        self.env = get_rl_env(self.config.rl_env_name, render_mode=render_mode)
 
     def get_rng_state(self) -> Optional[np.random._generator.Generator]:
         warnings.warn("WARNING: rng state not used in this environment")
@@ -182,7 +191,7 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
             result = dict()
             exec(source, result)
             policy_fn = result["policy"]
-            return RLPolicy(self.rl_env, policy_fn)
+            return RLPolicy(self.env, policy_fn)
         elif self.task_type == TaskType.VALUE:
             source = f"{program.src}\n\nvalue = Value()"
             result = dict()

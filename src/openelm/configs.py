@@ -83,7 +83,7 @@ class CVTMAPElitesConfig(QDConfig):
 class FunSearchConfig(QDConfig):
     qd_name: str = "fun_search"
     init_steps: int = 10
-    total_steps: int = 100
+    total_steps: int = 500
     log_stats_steps: int = 25
 
     database_config = dict(functions_per_prompt=1,

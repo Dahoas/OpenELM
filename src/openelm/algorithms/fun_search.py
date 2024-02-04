@@ -313,7 +313,8 @@ class FunSearch:
                fitness_runtimes = stats.pop("fitness_runtimes")
                stats["fitness_runtime_avg"] = np.mean(fitness_runtimes)
                stats["fitness_runtime_std"] = np.std(fitness_runtimes)
-               print(json.dumps(self.stats, indent=2))
+               print(json.dumps(stats, indent=2))
                with open(self.stats_log_file, "a+") as f:
-                  json.dump(self.stats, f)
+                  json.dump(stats, f)
+                  f.write("\n")
             
