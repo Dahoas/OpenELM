@@ -63,6 +63,10 @@ class RLPolicy:
     def make_env_copy(self):
         return self.rl_env.deepcopy() if hasattr(self.rl_env, "deepcopy") else deepcopy(self.rl_env)
 
+    def restore_env(self, rl_env_copy):
+        if hasattr(rl_env_copy, "restore"):
+            rl_env_copy.restore()
+
     def act(self, observation):
         return self.policy.act(observation)
     
@@ -89,12 +93,12 @@ class RLValuePolicy(RLPolicy):
     def _value_only_policy(self, observation):
         action_dict = {action: 0 for action in self.rl_env.get_actions()}
         for action in action_dict:
-            rl_env_copy = self.make_env_copy()
+            rl_env_copy = self.make_env_copy()  # Make (fake) copy of current state
             observation, reward, terminated, _, _ = rl_env_copy.step(action)
             value = self.value_fn.value(observation)
             action_dict[action] = reward if reward != 0 else value
+            self.restore_env(rl_env_copy)  # Need to restore original state as this is not a true copy
         action_ind = np.argmax(list(action_dict.values()))
-
         return list(action_dict.keys())[action_ind]
 
     def act(self, observation):

@@ -4,9 +4,37 @@ import chess
 from stockfish import Stockfish
 from typing import List
 from copy import deepcopy
+from enum import Enum
+import numpy as np
 
 
-STOCKFISH_PATH = "/mnt/c/Users/alexd/Projects/stockfish-ubuntu-x86-64-modern/stockfish/stockfish-ubuntu-x86-64-modern"
+STOCKFISH_PATH = "/storage/coda1/p-wliao60/0/ahavrilla3/alex/repos/OpenELM/stockfish/stockfish"
+
+
+class EnvMode(Enum):
+    GROUND = 1
+    IMAGINED = 2
+
+    @classmethod
+    def from_string(cls, name):
+        name_to_val = {val.name: val for val in cls}
+        if name_to_val.get(name.upper(), None):
+            return name_to_val[name.upper()]
+        else:
+            raise ValueError(f"Unknown name: {name}!!!")
+
+
+class RandomStockfish:
+    def __init__(self, board):
+        self.board = board
+
+    def get_best_move(self):
+        move = np.random.choice(list(self.board.legal_moves))
+        return move.uci()
+
+    def set_position(self, moves):
+        pass
+
 
 class ChessEnv:
     """ 
@@ -19,18 +47,29 @@ class ChessEnv:
     }
 
     def __init__(self,
+                 stockfish=None,
                  stockfish_skill: int=1,
-                 render_mode=None,):
+                 render_mode=None,
+                 mode="ground",
+                 board=None,
+                 moves=None,):
         """ 
         + stockfish_skill: Difficulty of stockfish opponent.
             - 1 -> 1350 ELO
         """
         super(ChessEnv, self).__init__()
-        self.board = chess.Board()
-        self.moves: List[chess.Move] = []
+        self.mode = EnvMode.from_string(mode)
+        self.board = chess.Board() if not board else board
+        self.moves: List[chess.Move] = [] if not moves else moves
         self.stockfish_skill = stockfish_skill
-        self.stockfish: Stockfish = Stockfish(STOCKFISH_PATH)
-        self.stockfish.set_skill_level(stockfish_skill)
+        if stockfish is None and self.mode == EnvMode.GROUND:
+            self.stockfish: Stockfish = Stockfish(STOCKFISH_PATH)
+            self.stockfish.set_skill_level(stockfish_skill)
+        elif self.mode == EnvMode.GROUND:
+            self.stockfish = stockfish
+            self.stockfish.set_skill_level(stockfish_skill)
+        else:
+            self.stockfish = RandomStockfish(self.board)
         
         # Define action and observation spaces
         self.action_space = spaces.Discrete(len(list(self.board.legal_moves)))  # Number of legal moves
@@ -45,11 +84,17 @@ class ChessEnv:
         return self._get_observation(), info
     
     def deepcopy(self):
-        copy_env = ChessEnv(stockfish_skill=self.stockfish_skill)
-        copy_env.board = deepcopy(self.board)
-        copy_env.moves = deepcopy(self.moves)
-        copy_env.stockfish.set_position(self.moves)
+        copy_env = ChessEnv(stockfish_skill=self.stockfish_skill, 
+                            mode="imagined",
+                            board=self.board,
+                            moves=self.moves,)
+        copy_env.num_ground_moves = len(self.moves)
         return copy_env
+
+    def restore(self):
+        while len(self.moves) > self.num_ground_moves:
+            self.moves.pop()
+            self.board.pop()
     
     def get_actions(self):
         return self.board.legal_moves
@@ -63,10 +108,7 @@ class ChessEnv:
             done = self.board.is_game_over()
             info = dict()
             truncated = False
-            if done:
-                reward = int(self.board.is_checkmate())
-                return self._get_observation(), reward, done, truncated, info
-            else:
+            if not done:
                 # Make move by opponent
                 self.stockfish.set_position([move.uci() for move in self.moves])
                 stockfish_move = self.stockfish.get_best_move()
@@ -75,6 +117,9 @@ class ChessEnv:
                 self.moves.append(stockfish_move)
                 done = self.board.is_game_over()
                 reward = -int(self.board.is_checkmate())
+                return self._get_observation(), reward, done, truncated, info
+            else:
+                reward = int(self.board.is_checkmate())
                 return self._get_observation(), reward, done, truncated, info
         else:
             done = True
