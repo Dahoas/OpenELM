@@ -12,6 +12,7 @@ from time import time
 import numpy as np
 
 from openelm.environments.base import BaseEnvironment, Genotype, Phenotype
+from openelm.environments.rl_envs.mcts import MCTSNode
 from openelm.algorithms.fun_search import Program
 
 import gymnasium as gym
@@ -76,34 +77,58 @@ class RLPolicy:
 
 class RLValuePolicy(RLPolicy):
     """
-    Implements methods of extracting policy from value function
+    Implements methods of contructing policies from value function
     """
     def __init__(self,
                  rl_env,
                  value_fn,
-                 method: str="value_only", 
-                 depth: int=0, 
-                 time_limit: float=0.5):
+                 method: str="mcts", 
+                 depth: int=3, 
+                 time_limit: float=1,
+                 rollout_limit: int=25,):
         self.rl_env = rl_env
-        self.value_fn = value_fn
+        self.value_fn = value_fn.value
         self.method = method
         self.depth = depth
         self.time_limit = time_limit
+        self.rollout_limit = rollout_limit
+        if self.method == "mcts":
+            self.mcts_root: MCTSNode = MCTSNode(value_fn=self.value_fn,
+                                                parent_action=None,
+                                                parent=None,)
 
     def _value_only_policy(self, observation):
         action_dict = {action: 0 for action in self.rl_env.get_actions()}
         for action in action_dict:
             rl_env_copy = self.make_env_copy()  # Make (fake) copy of current state
             observation, reward, terminated, _, _ = rl_env_copy.step(action)
-            value = self.value_fn.value(observation)
+            value = self.value_fn(observation)
             action_dict[action] = reward if reward != 0 else value
             self.restore_env(rl_env_copy)  # Need to restore original state as this is not a true copy
         action_ind = np.argmax(list(action_dict.values()))
         return list(action_dict.keys())[action_ind]
 
+    def _mcts_policy(self, observation):
+        t = time()
+        # Rollout MCTS tree
+        for i in range(self.rollout_limit):
+            elapsed = time() - t
+            if elapsed > self.time_limit: break
+            rl_env_copy = self.make_env_copy()
+            node = self.mcts_root.select(rl_env_copy)
+            ret = node.rollout(rl_env_copy, depth=self.depth)
+            node.backprop(ret)
+            self.restore_env(rl_env_copy)
+        # Update mcts_root root and select best action
+        weights = [np.mean(child.results) for child in self.mcts_root.children]
+        self.mcts_root = self.mcts_root.children[np.argmax(weights)]
+        return self.mcts_root.parent_action
+
     def act(self, observation):
         if self.method == "value_only":
             return self._value_only_policy(observation)
+        elif self.method == "mcts":
+            return self._mcts_policy(observation)
         else:
             raise ValueError(f"Method is unknown: {self.method}!!!")
         
@@ -113,7 +138,7 @@ class RLValuePolicy(RLPolicy):
 
 def get_rl_env(rl_env_name, render_mode):
     if rl_env_name == "chess":
-        from openelm.environments.chess_env import ChessEnv
+        from openelm.environments.rl_envs.chess_env import ChessEnv
         return ChessEnv(render_mode=render_mode)
     return gym.make(rl_env_name, render_mode=render_mode)
     
@@ -239,5 +264,5 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         fitness = np.mean(returns)
         res = dict(fitness=fitness, 
                    eval_runtimes=eval_runtimes,
-                   trajectories=trajectory,)
+                   trajectories=trajectories,)
         return res

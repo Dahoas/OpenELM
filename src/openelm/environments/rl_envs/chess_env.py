@@ -97,7 +97,7 @@ class ChessEnv:
             self.board.pop()
     
     def get_actions(self):
-        return self.board.legal_moves
+        return list(self.board.legal_moves)
 
     def step(self, action: chess.Move):
         # Convert action index to a chess move
@@ -133,6 +133,7 @@ class ChessEnv:
         if self.render_mode == "human":
             print(self.board)
             print("------------------------")
+        return self.board
 
     def _get_observation(self):
         # Convert the board to a matrix or other representation suitable for your observation space
