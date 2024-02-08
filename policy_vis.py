@@ -8,11 +8,13 @@ import cProfile
 import argparse
 
 from openelm.environments.rl_env import ELMRLEnv, Program
-from openelm.configs import RLEnvConfig
+from openelm.configs import RLEnvConfig, FitnessCurriculum
 
 
 rl_env_name = "chess"
 task_type = "value"
+curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
+fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20, curriculum=curriculum)
 config = RLEnvConfig(rl_env_name=rl_env_name,
                      task_type=task_type,
                      task_description="",
@@ -20,7 +22,8 @@ config = RLEnvConfig(rl_env_name=rl_env_name,
                      action_description="",
                      reward_description="",
                      action_exemplar="",
-                     horizon=100,)
+                     horizon=100,
+                     fitness_curriculum=fitness_curriculum,)
 elm_env = ELMRLEnv(config=config,
                    mutation_model=None,
                    render_mode="human",)
@@ -36,11 +39,12 @@ policy = elm_env._extract_executable_policy(program=program)
 
 # Execution loop
 def execute():
-    time_per_action = 1e-5 # Time between visualized moves in seconds
+    time_per_action = .01 # Time between visualized moves in seconds
     seed = np.random.randint(0, 1e9)
     observation, _ = rl_env.reset(seed=seed)
     rl_env.render()
     rewards = []
+    game_start = time.time()
     for step in range(config.horizon):
         print("Step num: ", step)
         t = time.time()
@@ -48,7 +52,10 @@ def execute():
         elapsed = time.time() - t
         print("Policy time: ", elapsed)
         old_observation = observation
+        t = time.time()
         observation, reward, terminated, _, info = rl_env.step(action)
+        elapsed = time.time() - t
+        print("Env time: ", elapsed)
         rewards.append(reward)
         if task_type == "value":
             value = policy.value_fn(observation)
@@ -67,6 +74,8 @@ def execute():
     print(json.dumps(info, indent=2))
     ret = reduce(lambda x, y: config.discount * x + y, rewards[::-1], 0)
     print("Reward: ", ret)
+    game_time = time.time() - game_start
+    print("Game time: ", game_time)
 
 
 def evaluate():

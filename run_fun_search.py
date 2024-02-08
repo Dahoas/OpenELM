@@ -15,7 +15,7 @@ from omegaconf import OmegaConf
 
 from openelm import ELM
 
-from openelm.configs import ModelConfig, FunSearchConfig, RLEnvConfig
+from openelm.configs import ModelConfig, FunSearchConfig, RLEnvConfig, FitnessCurriculum
 from rl_env_descriptions import envs
 
 
@@ -30,14 +30,19 @@ def main(config):
                                gen_max_len=4096,
                                temp=1.0,
                                batch_size=1,)
-    config.qd = FunSearchConfig()
+    seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/logs/elm/24-02-08_12:22/database.jsonl"
+    config.qd = FunSearchConfig(seed_policies_dir=seeds)
+    curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
+    fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20,
+                                           curriculum=curriculum,)
     config.env = RLEnvConfig(rl_env_name=rl_env_name,
                              task_type="value",
                              task_description=envs[rl_env_name]["task_description"],
                              observation_description=envs[rl_env_name]["observation_description"],
                              action_description=envs[rl_env_name]["action_description"],
                              reward_description=envs[rl_env_name]["reward_description"],
-                             action_exemplar=envs[rl_env_name]["action_exemplar"])
+                             action_exemplar=envs[rl_env_name]["action_exemplar"],
+                             fitness_curriculum=fitness_curriculum,)
 
     print("----------------- Config ---------------")
     print(OmegaConf.to_yaml(config))

@@ -249,7 +249,44 @@ class FunSearch:
            fitness_runtimes=[],
         )
         self.stats_log_file = os.path.join(config.output_dir, "stats.jsonl")
-        print("Loading finished!")
+        # Load seed policies if available
+        if self.config.seed_policies_dir is not None:
+            path = pathlib.Path(self.config.seed_policies_dir)
+            print(f"Loading {self.config.seed_policies_dir} as initial policies...")
+            if path.is_file():
+                assert ".jsonl" in path.name
+                with open(path, "r") as f:
+                    samples = f.readlines()
+                print(f"Found {len(samples)} samples.")
+                samples = [json.loads(sample) for sample in samples]
+                for sample in samples:
+                    src = sample["src"]
+                    program = Program(src)
+                    fitness = sample["fitness"]
+                    islands = sample["islands"]
+                    self.database.add(program, fitness, island_ids=islands)
+                    # Update stats
+                    res = dict(fitness=fitness,
+                               eval_runtimes=[],
+                               fitness_runtime=0,)
+                    self.update_stats(self.start_step, program, res)
+                    self.start_step += 1
+            else:
+                seed_files = path.glob("*")
+                for seed_file in seed_files:
+                    with open(seed_file, "r") as f:
+                        src = "\n".join(f.readlines())
+                        program = Program(src)
+                        fitness = self.env.fitness(program)
+                        island_ids = list(range(len(self.database.islands)))
+                        self.database.add(program, fitness, island_ids=island_ids)
+                        # Update stats
+                        res = dict(fitness=fitness,
+                               eval_runtimes=[],
+                               fitness_runtime=0,)
+                        self.update_stats(self.start_step, program, res)
+                        self.start_step += 1
+        print(f"Loading finished! Starting on step {self.start_step}.")
 
     def random_selection(self):
        return self.database.sample_programs()
@@ -275,7 +312,7 @@ class FunSearch:
                 `current_max_genome` class attribute.
         """
         total_steps = int(total_steps)
-        for n_steps in range(total_steps):
+        for n_steps in range(self.start_step, total_steps):
             if n_steps < init_steps:
                 # Initialise by generating initsteps random solutions
                 new_individuals: List[Program] = self.env.random()
@@ -291,30 +328,36 @@ class FunSearch:
 
             for individual, island_ids in zip(new_individuals, island_ids_list):
                 # Evaluate fitness
+                t = time.time()
                 res = self.env.fitness(individual)
+                fitness_runtime = time.time() - t
                 fitness = res["fitness"]
                 if np.isinf(fitness):
                     continue
                 self.database.add(individual, fitness, island_ids=island_ids)
                 # Update stats
-                self.stats["eval_runtimes"] += res["eval_runtimes"]
-                self.stats["fitness_runtimes"].append(sum(res["eval_runtimes"]))
-                if fitness > self.stats["best_fitness"]:
-                   self.stats["best_fitness"] = fitness
-                   self.stats["best_program"] = individual.src
-                   self.stats["best_step"] = n_steps
+                res["fitness_runtime"] = fitness_runtime
+                self.update_stats(n_steps, individual, res)
 
-            self.stats["step"] = n_steps
-            if n_steps % self.config.log_stats_steps == 0 and n_steps > 1:
-               stats = deepcopy(self.stats)
-               eval_runtimes = stats.pop("eval_runtimes")
-               stats["eval_runtime_avg"] = np.mean(eval_runtimes)
-               stats["eval_runtime_std"] = np.std(eval_runtimes)
-               fitness_runtimes = stats.pop("fitness_runtimes")
-               stats["fitness_runtime_avg"] = np.mean(fitness_runtimes)
-               stats["fitness_runtime_std"] = np.std(fitness_runtimes)
-               print(json.dumps(stats, indent=2))
-               with open(self.stats_log_file, "a+") as f:
-                  json.dump(stats, f)
-                  f.write("\n")
+    def update_stats(self, n_steps, individual, res):
+        fitness = res["fitness"]
+        self.stats["eval_runtimes"] += res["eval_runtimes"]
+        self.stats["fitness_runtimes"].append(res["fitness_runtime"])
+        if fitness > self.stats["best_fitness"]:
+            self.stats["best_fitness"] = fitness
+            self.stats["best_program"] = individual.src
+            self.stats["best_step"] = n_steps
+        self.stats["step"] = n_steps
+        if n_steps % self.config.log_stats_steps == 0:
+           stats = deepcopy(self.stats)
+           eval_runtimes = stats.pop("eval_runtimes")
+           stats["eval_runtime_avg"] = np.mean(eval_runtimes)
+           stats["eval_runtime_std"] = np.std(eval_runtimes)
+           fitness_runtimes = stats.pop("fitness_runtimes")
+           stats["fitness_runtime_avg"] = np.mean(fitness_runtimes)
+           stats["fitness_runtime_std"] = np.std(fitness_runtimes)
+           print(json.dumps(stats, indent=2))
+           with open(self.stats_log_file, "a+") as f:
+              json.dump(stats, f)
+              f.write("\n")
             

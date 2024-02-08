@@ -49,11 +49,13 @@ class ChessEnv:
 
     def __init__(self,
                  stockfish=None,
-                 stockfish_skill: int=1,
+                 stockfish_skill: int=0,
                  render_mode=None,
                  mode="ground",
                  board=None,
-                 moves=None,):
+                 moves=None,
+                 stockfish_threads=1,
+                 stockfish_depth=15,):
         """ 
         + stockfish_skill: Difficulty of stockfish opponent.
             - 1 -> 1350 ELO
@@ -63,8 +65,9 @@ class ChessEnv:
         self.board = chess.Board() if not board else board
         self.moves: List[chess.Move] = [] if not moves else moves
         self.stockfish_skill = stockfish_skill
+        self.stockfish_params = dict(Threads=stockfish_threads)
         if stockfish is None and self.mode == EnvMode.GROUND:
-            self.stockfish: Stockfish = Stockfish(STOCKFISH_PATH)
+            self.stockfish: Stockfish = Stockfish(STOCKFISH_PATH, depth=stockfish_depth, parameters=self.stockfish_params)
             self.stockfish.set_skill_level(stockfish_skill)
         elif self.mode == EnvMode.GROUND:
             self.stockfish = stockfish
@@ -94,12 +97,13 @@ class ChessEnv:
         info = dict()
         return self._get_observation(), info
     
-    def deepcopy(self, mode="imagined"):
+    def deepcopy(self, mode="imagined", **kwargs):
         if mode == "mp":
             copy_env = ChessEnv(stockfish_skill=self.stockfish_skill,
                                 mode=self.mode.name,
                                 board=self.board,
-                                moves=self.moves,)
+                                moves=self.moves,
+                                **kwargs,)
         else:
             copy_env = ChessEnv(stockfish_skill=self.stockfish_skill, 
                             mode=mode,

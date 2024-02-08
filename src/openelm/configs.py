@@ -84,14 +84,14 @@ class FunSearchConfig(QDConfig):
     qd_name: str = "fun_search"
     init_steps: int = 10
     total_steps: int = 500
-    log_stats_steps: int = 25
+    log_stats_steps: int = 1
 
     database_config = dict(functions_per_prompt=1,
                            num_islands=10,
                            reset_period=50,
                            cluster_sampling_temperature_init=0.1,
                            cluster_sampling_temperature_period=30_000,)
-
+    seed_policies_dir: Optional[str] = None
 
 ######## Environment Configs ########
 
@@ -181,6 +181,12 @@ class PromptEnvConfig(EnvConfig):
 
 
 @dataclass
+class FitnessCurriculum:
+    num_eval_rollouts: int
+    curriculum: list[dict]
+
+
+@dataclass
 class RLEnvConfig(EnvConfig):
     # RL env params
     env_name: str = "rl_env"
@@ -196,7 +202,7 @@ class RLEnvConfig(EnvConfig):
     batch_size: int = 1
 
     # Params used to compute policy fitness
-    num_eval_rollouts: int = 10
+    fitness_curriculum: FitnessCurriculum = MISSING
     horizon: int = 100  # Max len of env trajectory
     discount: float = 1.0  # Discount factor
 

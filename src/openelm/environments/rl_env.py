@@ -6,7 +6,7 @@ from typing import Optional, List, Any
 from functools import reduce
 from copy import deepcopy
 from enum import Enum
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from time import time
 import multiprocessing as mp
 
@@ -40,7 +40,8 @@ def get_task_prompt(task_type: TaskType):
 You are responsible for designing a value function to solve the following task: 
 {task_description}\n\n\
 You will write a python `Value`, which should be initializable without any parameters from the user, object which has one method:
-- `def value(observation)` which takes in an observation and returns the value of the observation
+- `def value(observation)` which takes in an observation and returns the value of the observation. The \
+output should be normalized between -1 and 1 \.
 Note: You should not assume any exploration outside of what is learned during the agent's single rollout in \
 the environment. This means you should not rely on Q-learning, requiring extra exploration.\n\n\
 The observation space is defined formally as: 
@@ -85,8 +86,8 @@ class RLValuePolicy(RLPolicy):
                  value_fn,
                  method: str="mcts", 
                  depth: int=10, 
-                 time_limit: float=30,
-                 rollout_limit: int=100,
+                 time_limit: float=2  ,
+                 rollout_limit: int=1000,
                  num_procs=1,):
         self.rl_env = rl_env
         self.value_fn = value_fn.value
@@ -131,6 +132,7 @@ class RLValuePolicy(RLPolicy):
                 node.backprop(ret)
                 self.restore_env(rl_env_copy)
         else:
+            # TODO(dahoas): This impl is incorrect. Faster but degrades perf
             batch_size = self.rollout_limit // self.num_procs
             results = mp.Array("d", [np.nan for _ in range(self.rollout_limit)])
             nodes, procs = [], []
@@ -214,7 +216,7 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
                  config,
                  mutation_model,
                  render_mode=None,
-                 num_procs=10,):
+                 num_procs=24,):
         """
         The objective is to generate well-performing python policies 
         for the given environment.
@@ -288,10 +290,10 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         in the environment
         """
         env = self.env
-        def eval_fitness(env, program, semaphore, returns, eval_runtimes, rank):
+        def eval_fitness(env, env_params, program, semaphore, returns, eval_runtimes, rank):
             semaphore.acquire()
             t = time()
-            copy_env = env.deepcopy(mode="mp") if hasattr(env, "deepcopy") else deepcopy(env)
+            copy_env = env.deepcopy(mode="mp", **env_params) if hasattr(env, "deepcopy") else deepcopy(env)
             try:
                 seed = np.random.randint(0, 1e9)
                 observation, _ = copy_env.reset(seed=seed)
@@ -305,19 +307,20 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
                     rewards.append(reward)
                     if terminated: break
                 ret = reduce(lambda x, y: self.config.discount * x + y, rewards[::-1], 0)
-            except KeyboardInterrupt:
+            except Exception:
                 ret = -100.0
             returns[rank] = float(ret)
             t = time() - t
             eval_runtimes[rank] = t
             semaphore.release()
         # Rollout policy in environment
-        returns: List[float] = mp.Array("d", [0 for _ in range(self.config.num_eval_rollouts)])
-        eval_runtimes: List[float] = mp.Array("d", [0 for _ in range(self.config.num_eval_rollouts)])
+        returns: List[float] = mp.Array("d", [0 for _ in range(self.config.fitness_curriculum.num_eval_rollouts)])
+        eval_runtimes: List[float] = mp.Array("d", [0 for _ in range(self.config.fitness_curriculum.num_eval_rollouts)])
         semaphore = mp.Semaphore(self.num_procs)
         procs = []
-        for rank in range(self.config.num_eval_rollouts):
-            p = mp.Process(target=eval_fitness, args=(env, program, semaphore, returns, eval_runtimes, rank))
+        for rank in range(self.config.fitness_curriculum.num_eval_rollouts):
+            env_params = self.config.fitness_curriculum.curriculum[rank]
+            p = mp.Process(target=eval_fitness, args=(env, env_params, program, semaphore, returns, eval_runtimes, rank))
             p.start()
             procs.append(p)
         for p in procs:
@@ -326,5 +329,7 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         eval_runtimes = np.frombuffer(eval_runtimes.get_obj(), dtype="d").tolist()
         fitness = np.mean(returns)
         res = dict(fitness=fitness, 
-                   eval_runtime=eval_runtimes,)
+                   eval_runtimes=eval_runtimes,)
         return res
+
+
