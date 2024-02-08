@@ -14,6 +14,7 @@ STOCKFISH_PATH = "/storage/coda1/p-wliao60/0/ahavrilla3/alex/repos/OpenELM/stock
 class EnvMode(Enum):
     GROUND = 1
     IMAGINED = 2
+    SINGLE = 3
 
     @classmethod
     def from_string(cls, name):
@@ -70,11 +71,21 @@ class ChessEnv:
             self.stockfish.set_skill_level(stockfish_skill)
         else:
             self.stockfish = RandomStockfish(self.board)
+
+        # Track parity in case self.mode == EnvMode.SINGLE
+        self.parity = 1
         
         # Define action and observation spaces
         self.action_space = spaces.Discrete(len(list(self.board.legal_moves)))  # Number of legal moves
         self.observation_space = spaces.Box(low=0, high=1, shape=(8, 8, 6), dtype=int)  # 8x8 board with 6 piece types
         self.render_mode = render_mode
+        self.done = False
+
+    def is_done(self):
+	      return self.done
+
+    def get_last_move(self):
+	      return self.board.peek()
 
     def reset(self, seed):
         self.board.reset()
@@ -83,9 +94,9 @@ class ChessEnv:
         info = dict()
         return self._get_observation(), info
     
-    def deepcopy(self):
+    def deepcopy(self, mode="imagined"):
         copy_env = ChessEnv(stockfish_skill=self.stockfish_skill, 
-                            mode="imagined",
+                            mode=mode,
                             board=self.board,
                             moves=self.moves,)
         copy_env.num_ground_moves = len(self.moves)
@@ -108,7 +119,8 @@ class ChessEnv:
             done = self.board.is_game_over()
             info = dict()
             truncated = False
-            if not done:
+            self.done = done
+            if not done and self.mode != EnvMode.SINGLE:
                 # Make move by opponent
                 self.stockfish.set_position([move.uci() for move in self.moves])
                 stockfish_move = self.stockfish.get_best_move()
@@ -116,13 +128,16 @@ class ChessEnv:
                 self.board.push(stockfish_move)
                 self.moves.append(stockfish_move)
                 done = self.board.is_game_over()
+                self.done = done
                 reward = -int(self.board.is_checkmate())
                 return self._get_observation(), reward, done, truncated, info
             else:
-                reward = int(self.board.is_checkmate())
+                reward = int(self.board.is_checkmate()) * self.parity
+                self.parity = -self.parity if self.mode == EnvMode.SINGLE else self.parity
                 return self._get_observation(), reward, done, truncated, info
         else:
             done = True
+            self.done = done
             truncated = True
             reward = -1
             info = {'reason': 'invalid move'}

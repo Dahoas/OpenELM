@@ -5,21 +5,14 @@ from typing import Optional, Callable
 from collections import defaultdict
 
 
-class StateDelta:
-    """
-    Used to maintain correspondence between nodes of MCTS tree and states without
-    storing/copying entire state.
-    """
-    
-
-
 class MCTSNode:
     def __init__(self,
                  value_fn,
                  parent_action, 
                  parent, 
                  terminal=False,
-                 exp_coef=2**(1/2)):
+                 exp_coef=2**(1/2),
+                 reward=0,):
         self.value_fn = value_fn
         self.parent_action = parent_action
         self.parent = parent
@@ -27,13 +20,15 @@ class MCTSNode:
         self.n: int = 0  # Num visits to node
         self.results: List[float] = [] # Return of each visit
         self.taken_actions = set()
-        self.terminal = terminal
+        self.terminal = terminal  # True if game is in terminal state
         self.exp_coef = exp_coef  # Exploration coefficient
+        self.reward = reward
 
     def expand(self, rl_env):
         """
         Expands a new node to add into the MCTS tree.
         """
+        assert not self.terminal
         actions = set(rl_env.get_actions())
         new_actions = list(actions - self.taken_actions)
         action = np.random.choice(new_actions)
@@ -43,15 +38,20 @@ class MCTSNode:
                             parent_action=action,
                             parent=self,
                             terminal=done,
-                            exp_coef=self.exp_coef,)
+                            exp_coef=self.exp_coef,
+                            reward=reward,)
         self.children.append(new_node)
         return new_node
+
+    def is_unexpanded(self):
+        return len(self.children) == 0
 
     def is_fully_expanded(self, rl_env):
         if len(self.taken_actions - set(rl_env.get_actions())) > 0:
             raise ValueError(f"Too many actions!!!\n\n\
 Node: {self.taken_actions}\n\n\
 rl_env: {rl_env.get_actions()}\n\n\
+diff: {self.taken_actions - set(rl_env.get_actions())}\n\n\
 state:\n\n {rl_env.render()}")
         return len(self.taken_actions) == len(rl_env.get_actions())
 
@@ -68,13 +68,16 @@ state:\n\n {rl_env.render()}")
         Selects a node to rollout from.
         """
         current_node = self
-        while not current_node.terminal:
+        while not current_node.is_unexpanded():
             if not current_node.is_fully_expanded(rl_env):
                 return current_node.expand(rl_env)
             else:
                 current_node = current_node._selection_policy(rl_env)
                 rl_env.step(current_node.parent_action)
-        return current_node
+        if not current_node.terminal:
+            return current_node.expand(rl_env)
+        else:
+            return current_node
 
     def _rollout_policy(self, rl_env):
         """
@@ -92,6 +95,8 @@ state:\n\n {rl_env.render()}")
         """
         # TODO(dahoas): maybe track move history to ensure rl_env agrees with node
         # Don't want to store a state in the node for performance/memory reasons
+        if self.terminal:
+            return self.reward
         for i in range(depth):
             action = self._rollout_policy(rl_env)
             observation, reward, done, _, _ = rl_env.step(action)

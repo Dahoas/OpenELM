@@ -61,8 +61,8 @@ class RLPolicy:
         self.rl_env = rl_env
         self.policy = policy
 
-    def make_env_copy(self):
-        return self.rl_env.deepcopy() if hasattr(self.rl_env, "deepcopy") else deepcopy(self.rl_env)
+    def make_env_copy(self, **kwargs):
+        return self.rl_env.deepcopy(**kwargs) if hasattr(self.rl_env, "deepcopy") else deepcopy(self.rl_env)
 
     def restore_env(self, rl_env_copy):
         if hasattr(rl_env_copy, "restore"):
@@ -83,9 +83,9 @@ class RLValuePolicy(RLPolicy):
                  rl_env,
                  value_fn,
                  method: str="mcts", 
-                 depth: int=3, 
-                 time_limit: float=1,
-                 rollout_limit: int=25,):
+                 depth: int=10, 
+                 time_limit: float=30,
+                 rollout_limit: int=5000,):
         self.rl_env = rl_env
         self.value_fn = value_fn.value
         self.method = method
@@ -114,13 +114,14 @@ class RLValuePolicy(RLPolicy):
         for i in range(self.rollout_limit):
             elapsed = time() - t
             if elapsed > self.time_limit: break
-            rl_env_copy = self.make_env_copy()
+            rl_env_copy = self.make_env_copy(mode="single")
             node = self.mcts_root.select(rl_env_copy)
             ret = node.rollout(rl_env_copy, depth=self.depth)
             node.backprop(ret)
             self.restore_env(rl_env_copy)
         # Update mcts_root root and select best action
         weights = [np.mean(child.results) for child in self.mcts_root.children]
+        #print("Policy time: ", elapsed)
         self.mcts_root = self.mcts_root.children[np.argmax(weights)]
         return self.mcts_root.parent_action
 
@@ -131,10 +132,28 @@ class RLValuePolicy(RLPolicy):
             return self._mcts_policy(observation)
         else:
             raise ValueError(f"Method is unknown: {self.method}!!!")
-        
+
     def update(self, old_observation, action, reward, observation):
-        pass
-    
+        """
+        If the policy uses MCTS need to update the tree with opponent's move.
+        """
+        if self.method == "mcts":
+            # NOTE: This assumes the rl_env has get_last_move method
+            opponent_move = self.rl_env.get_last_move()
+            done = self.rl_env.is_done()
+            # Check if move present in tree
+            new_root = None
+            for child in self.mcts_root.children:
+                if child.parent_action == opponent_move:
+                    new_root = child
+            if not new_root:
+                new_root = MCTSNode(value_fn=self.value_fn,
+                                    parent_action=opponent_move,
+                                    parent=self.mcts_root,
+                                    terminal=done,
+                                    exp_coef=self.mcts_root.exp_coef,)
+            self.mcts_root = new_root
+        
 
 def get_rl_env(rl_env_name, render_mode):
     if rl_env_name == "chess":
