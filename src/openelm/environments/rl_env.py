@@ -8,6 +8,7 @@ from copy import deepcopy
 from enum import Enum
 from dataclasses import asdict
 from time import time
+import multiprocessing as mp
 
 import numpy as np
 
@@ -85,13 +86,15 @@ class RLValuePolicy(RLPolicy):
                  method: str="mcts", 
                  depth: int=10, 
                  time_limit: float=30,
-                 rollout_limit: int=5000,):
+                 rollout_limit: int=1000,
+                 num_procs=1,):
         self.rl_env = rl_env
         self.value_fn = value_fn.value
         self.method = method
         self.depth = depth
         self.time_limit = time_limit
         self.rollout_limit = rollout_limit
+        self.num_procs = num_procs
         if self.method == "mcts":
             self.mcts_root: MCTSNode = MCTSNode(value_fn=self.value_fn,
                                                 parent_action=None,
@@ -109,16 +112,44 @@ class RLValuePolicy(RLPolicy):
         return list(action_dict.keys())[action_ind]
 
     def _mcts_policy(self, observation):
+        def do_rollout(node, rl_env, depth, results, rank):
+            ret = node.rollout(rl_env, depth=depth)
+            results[rank] = ret
+
         t = time()
-        # Rollout MCTS tree
-        for i in range(self.rollout_limit):
-            elapsed = time() - t
-            if elapsed > self.time_limit: break
-            rl_env_copy = self.make_env_copy(mode="single")
-            node = self.mcts_root.select(rl_env_copy)
-            ret = node.rollout(rl_env_copy, depth=self.depth)
-            node.backprop(ret)
-            self.restore_env(rl_env_copy)
+        if self.num_procs == 1:
+            # Rollout MCTS tree
+            for i in range(self.rollout_limit):
+                elapsed = time() - t
+                if elapsed > self.time_limit: break
+                rl_env_copy = self.make_env_copy(mode="single")
+                node = self.mcts_root.select(rl_env_copy)            
+                ret = node.rollout(rl_env_copy, depth=self.depth)
+                node.backprop(ret)
+                self.restore_env(rl_env_copy)
+        else:
+            num_batches = (self.rollout_limit - self.num_procs + 1) // self.num_procs
+            for _ in range(num_batches):
+                elapsed = time() - t
+                if elapsed > self.time_limit: break
+                results = mp.Array("d", [0 for _ in range(self.num_procs)])
+                procs = []
+                nodes = []
+                for i in range(self.num_procs):
+                    rl_env_copy = self.make_env_copy(mode="single")
+                    node = self.mcts_root.select(rl_env_copy)
+                    nodes.append(node)
+                    p = mp.Process(target=do_rollout, args=(node, rl_env_copy, self.depth, results, i))
+                    procs.append(p)
+                    p.start()
+                    self.restore_env(rl_env_copy)
+
+                for i, p in enumerate(procs):
+                    p.join()
+                    ret = results[i]
+                    node = nodes[i]
+                    node.backprop(ret)
+                    
         # Update mcts_root root and select best action
         weights = [np.mean(child.results) for child in self.mcts_root.children]
         #print("Policy time: ", elapsed)
