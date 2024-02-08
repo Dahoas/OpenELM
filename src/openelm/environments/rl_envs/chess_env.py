@@ -95,11 +95,17 @@ class ChessEnv:
         return self._get_observation(), info
     
     def deepcopy(self, mode="imagined"):
-        copy_env = ChessEnv(stockfish_skill=self.stockfish_skill, 
+        if mode == "mp":
+            copy_env = ChessEnv(stockfish_skill=self.stockfish_skill,
+                                mode=self.mode.name,
+                                board=self.board,
+                                moves=self.moves,)
+        else:
+            copy_env = ChessEnv(stockfish_skill=self.stockfish_skill, 
                             mode=mode,
                             board=self.board,
                             moves=self.moves,)
-        copy_env.num_ground_moves = len(self.moves)
+            copy_env.num_ground_moves = len(self.moves)
         return copy_env
 
     def restore(self):

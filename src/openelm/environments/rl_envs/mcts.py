@@ -60,6 +60,7 @@ state:\n\n {rl_env.render()}")
         Implements UCT exploration policy during selection phase.
         """
         weights = [np.mean(node.results) + self.exp_coef*np.sqrt(2*np.log(self.n)/node.n) for node in self.children]
+        weights = np.nan_to_num(weights, nan=0) + 1e-9*np.random.randn(len(weights))  # Possibly nan if executing in parallel
         next_node = self.children[np.argmax(weights)]
         return next_node
 

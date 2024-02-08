@@ -86,7 +86,7 @@ class RLValuePolicy(RLPolicy):
                  method: str="mcts", 
                  depth: int=10, 
                  time_limit: float=30,
-                 rollout_limit: int=1000,
+                 rollout_limit: int=100,
                  num_procs=1,):
         self.rl_env = rl_env
         self.value_fn = value_fn.value
@@ -112,9 +112,12 @@ class RLValuePolicy(RLPolicy):
         return list(action_dict.keys())[action_ind]
 
     def _mcts_policy(self, observation):
-        def do_rollout(node, rl_env, depth, results, rank):
-            ret = node.rollout(rl_env, depth=depth)
-            results[rank] = ret
+        def do_rollouts(nodes, rl_env, depth, results, batch_size, rank):
+            for i, node in enumerate(nodes):
+                rl_env_copy = self.make_env_copy(mode="single")
+                ret = node.rollout(rl_env_copy, depth=depth)
+                results[rank * batch_size + i] = ret
+                self.restore_env(rl_env_copy)
 
         t = time()
         if self.num_procs == 1:
@@ -128,27 +131,26 @@ class RLValuePolicy(RLPolicy):
                 node.backprop(ret)
                 self.restore_env(rl_env_copy)
         else:
-            num_batches = (self.rollout_limit - self.num_procs + 1) // self.num_procs
-            for _ in range(num_batches):
-                elapsed = time() - t
-                if elapsed > self.time_limit: break
-                results = mp.Array("d", [0 for _ in range(self.num_procs)])
-                procs = []
-                nodes = []
-                for i in range(self.num_procs):
-                    rl_env_copy = self.make_env_copy(mode="single")
-                    node = self.mcts_root.select(rl_env_copy)
-                    nodes.append(node)
-                    p = mp.Process(target=do_rollout, args=(node, rl_env_copy, self.depth, results, i))
-                    procs.append(p)
-                    p.start()
-                    self.restore_env(rl_env_copy)
-
-                for i, p in enumerate(procs):
-                    p.join()
-                    ret = results[i]
-                    node = nodes[i]
-                    node.backprop(ret)
+            batch_size = self.rollout_limit // self.num_procs
+            results = mp.Array("d", [np.nan for _ in range(self.rollout_limit)])
+            nodes, procs = [], []
+            for i in range(self.rollout_limit):
+                rl_env_copy = self.make_env_copy(mode="single")
+                node = self.mcts_root.select(rl_env_copy)
+                nodes.append(node)
+                self.restore_env(rl_env_copy)
+            for i in range(self.num_procs):
+                proc_nodes = nodes[i*batch_size:(i+1)*batch_size]
+                p = mp.Process(target=do_rollouts, args=(proc_nodes, self.rl_env, self.depth, results, batch_size, i))
+                procs.append(p)
+                p.start()
+            for i, p in enumerate(procs):
+                p.join()
+                rets = results[i*batch_size:(i+1)*batch_size]
+                ret_nodes = nodes[i*batch_size:(i+1)*batch_size]
+                for ret, node in zip(rets, ret_nodes): 
+                    if ret is not np.nan:
+                        node.backprop(ret)
                     
         # Update mcts_root root and select best action
         weights = [np.mean(child.results) for child in self.mcts_root.children]
@@ -211,7 +213,8 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
     def __init__(self,
                  config,
                  mutation_model,
-                 render_mode=None,):
+                 render_mode=None,
+                 num_procs=10,):
         """
         The objective is to generate well-performing python policies 
         for the given environment.
@@ -226,6 +229,7 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         self.mutation_model = mutation_model
         self.task_type = TaskType.from_string(self.config.task_type)
         self.env = get_rl_env(self.config.rl_env_name, render_mode=render_mode)
+        self.num_procs = num_procs
 
     def get_rng_state(self) -> Optional[np.random._generator.Generator]:
         warnings.warn("WARNING: rng state not used in this environment")
@@ -284,35 +288,43 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         in the environment
         """
         env = self.env
-        # Rollout policy in environment
-        returns: List[float] = []
-        eval_runtimes: List[float] = []
-        trajectories: List[List[Any]] = []
-        for _ in range(self.config.num_eval_rollouts):
+        def eval_fitness(env, program, semaphore, returns, eval_runtimes, rank):
+            semaphore.acquire()
             t = time()
-            trajectory = []
+            copy_env = env.deepcopy(mode="mp") if hasattr(env, "deepcopy") else deepcopy(env)
             try:
                 seed = np.random.randint(0, 1e9)
-                observation, _ = env.reset(seed=seed)
+                observation, _ = copy_env.reset(seed=seed)
                 policy = self._extract_executable_policy(program)
                 rewards = []
                 for _ in range(self.config.horizon):
                     action = policy.act(observation)
-                    trajectory.append(action)
                     old_observation = observation
-                    observation, reward, terminated, _, _ = env.step(action)
+                    observation, reward, terminated, _, _ = copy_env.step(action)
                     policy.update(old_observation, action, reward, observation)
                     rewards.append(reward)
                     if terminated: break
                 ret = reduce(lambda x, y: self.config.discount * x + y, rewards[::-1], 0)
-            except Exception:
-                ret = -100
-            returns.append(ret)
+            except KeyboardInterrupt:
+                ret = -100.0
+            returns[rank] = float(ret)
             t = time() - t
-            eval_runtimes.append(t)
-            trajectories.append(trajectory)
+            eval_runtimes[rank] = t
+            semaphore.release()
+        # Rollout policy in environment
+        returns: List[float] = mp.Array("d", [0 for _ in range(self.config.num_eval_rollouts)])
+        eval_runtimes: List[float] = mp.Array("d", [0 for _ in range(self.config.num_eval_rollouts)])
+        semaphore = mp.Semaphore(self.num_procs)
+        procs = []
+        for rank in range(self.config.num_eval_rollouts):
+            p = mp.Process(target=eval_fitness, args=(env, program, semaphore, returns, eval_runtimes, rank))
+            p.start()
+            procs.append(p)
+        for p in procs:
+            p.join()
+        returns = np.frombuffer(returns.get_obj(), dtype="d").tolist()
+        eval_runtimes = np.frombuffer(eval_runtimes.get_obj(), dtype="d").tolist()
         fitness = np.mean(returns)
         res = dict(fitness=fitness, 
-                   eval_runtimes=eval_runtimes,
-                   trajectories=trajectories,)
+                   eval_runtime=eval_runtimes,)
         return res

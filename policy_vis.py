@@ -36,14 +36,17 @@ policy = elm_env._extract_executable_policy(program=program)
 
 # Execution loop
 def execute():
-    time_per_action = 1 # Time between visualized moves in seconds
+    time_per_action = 1e-5 # Time between visualized moves in seconds
     seed = np.random.randint(0, 1e9)
     observation, _ = rl_env.reset(seed=seed)
     rl_env.render()
     rewards = []
     for step in range(config.horizon):
         print("Step num: ", step)
+        t = time.time()
         action = policy.act(observation)
+        elapsed = time.time() - t
+        print("Policy time: ", elapsed)
         old_observation = observation
         observation, reward, terminated, _, info = rl_env.step(action)
         rewards.append(reward)
@@ -68,7 +71,6 @@ def execute():
 
 def evaluate():
     res = elm_env.fitness(program)
-    res.pop("trajectories")
     print(json.dumps(res, indent=2))
 
 
