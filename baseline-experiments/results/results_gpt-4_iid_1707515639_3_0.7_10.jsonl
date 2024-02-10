@@ -1,0 +1,3 @@
+{"result": "```python\nimport chess\nimport numpy as np"}
+{"result": "In this task, we assume that the agent is"}
+{"result": "```python\nimport chess\nfrom math import pow"}
