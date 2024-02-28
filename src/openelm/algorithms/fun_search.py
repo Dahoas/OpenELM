@@ -27,6 +27,7 @@ class Program(Genotype):
   + src: source code
   """
   src: str
+  fitness: Optional[float] = None
   island_id: Optional[int] = None
 
   def __str__(self) -> str:
@@ -335,6 +336,7 @@ class FunSearch:
                 fitness = res["fitness"]
                 if np.isinf(fitness):
                     continue
+                individual.fitness = fitness
                 self.database.add(individual, fitness, island_ids=island_ids)
                 # Update stats
                 res["fitness_runtime"] = fitness_runtime

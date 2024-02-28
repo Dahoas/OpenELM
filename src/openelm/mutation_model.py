@@ -57,6 +57,7 @@ class GPTModel(MutationModel):
     def __init__(self, config: ModelConfig):
         self.config = config
         from gptquery.gpt import GPT
+        google_key = "AIzaSyARcyOX4FwQXrYBvwp1M9zNg5Ntw9uORaE"
         self.model = GPT(model_name=config.model_path,
                          temperature=config.temp,
                          max_num_tokens=config.gen_max_len,

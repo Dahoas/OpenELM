@@ -15,6 +15,7 @@ import numpy as np
 from openelm.environments.base import BaseEnvironment, Genotype, Phenotype
 from openelm.environments.rl_envs.mcts import MCTSNode
 from openelm.algorithms.fun_search import Program
+from openelm.environments.rl_env_util.env_wrappers import get_wrapped_env
 
 import gymnasium as gym
 
@@ -246,7 +247,8 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         if exemplars is not None:
             demo = "Examples of policies: \n\n\n"
             for exemplar in exemplars:
-                demo += f"```python\n{exemplar.src}```" + "\n\n\n"
+                demo += f"```python\n{exemplar.src}```" + "\n\n"
+                demo += f"The average return for the policy is: {exemplar.fitness}. You should optionally use this to determine how to improve/fix the policy.\n\n"
             prompt += demo
 
         return prompt

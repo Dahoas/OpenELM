@@ -86,9 +86,11 @@ class FunSearchConfig(QDConfig):
     total_steps: int = 500
     log_stats_steps: int = 1
 
+    seed_policies_dir: Optional[str] = None
+
     database_config = dict(functions_per_prompt=1,
-                           num_islands=10,
-                           reset_period=50,
+                           num_islands=5,
+                           reset_period=25,
                            cluster_sampling_temperature_init=0.1,
                            cluster_sampling_temperature_period=30_000,)
     seed_policies_dir: Optional[str] = None
@@ -197,7 +199,8 @@ class RLEnvConfig(EnvConfig):
     action_description: str = MISSING  # Description of action space fed to LLM
     reward_description: str = MISSING  # Description of rewards
     action_exemplar: str = MISSING  # Example sequence of (annotated) actions
-    api_description: str = ""  # Description of apis model can use to solve task
+    api_description: str = MISSING  # Description of apis model can use to solve task
+    api_list: list[str] = MISSING  # List of api function names from rl_env_utils
 
     batch_size: int = 1
 
