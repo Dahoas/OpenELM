@@ -1,0 +1,80 @@
+You are responsible for designing a value function to solve the following task: 
+
+        You are a chess world champion. Win the chess game. You are playing white. You have no time constraints.  
+
+
+You will write a python `Value`, which should be initializable without any parameters from the user, object which has one method:
+- `def value(observation)` which takes in an observation and returns the value of the observation. The output should be normalized between -1 and 1.
+Note: You should not assume any exploration outside of what is learned during the agent's single rollout in the environment. This means you should not rely on Q-learning, requiring extra exploration.
+
+The observation space is defined formally as: 
+
+        observation: chess.Boards() object from the python-chess library. It has the following attributes which may be useful:
+        
+        move_stack: List[Move]
+        The move stack. Use Board.push(), Board.pop(), Board.peek() and Board.clear_stack() for manipulation.
+
+        propertylegal_moves: LegalMoveGenerator
+        A dynamic list of legal moves.
+        Note: To use this as a list you will need to do list(board.legal_moves)
+
+        import chess
+
+        board = chess.Board()
+        board.legal_moves.count()
+        20
+        bool(board.legal_moves)
+        True
+        move = chess.Move.from_uci("g1f3")
+        move in board.legal_moves
+        True
+        Wraps generate_legal_moves() and is_legal().
+
+
+        checkers()→ SquareSet[source]
+        Gets the pieces currently giving check.
+
+        Returns a set of squares.
+
+
+        is_check()→ bool[source]
+        Tests if the current side to move is in check.
+
+        gives_check(move: Move)→ bool[source]
+        Probes if the given move would put the opponent in check. The move must be at least pseudo-legal.
+
+
+        is_checkmate()→ bool[source]
+        Checks if the current position is a checkmate.
+
+        is_stalemate()→ bool[source]
+        Checks if the current position is a stalemate.
+
+        is_insufficient_material()→ bool[source]
+        Checks if neither side has sufficient winning material (has_insufficient_material()).
+
+        has_insufficient_material(color: chess.Color)→ bool[source]
+        Checks if color has insufficient winning material.
+
+        This is guaranteed to return False if color can still win the game.
+
+        The converse does not necessarily hold: The implementation only looks at the material, including the colors of bishops, but not considering piece positions. So fortress positions or positions with forced lines may return False, even though there is no possible winning line.
+
+
+        find_move(from_square: chess.Square, to_square: chess.Square, promotion: chess.PieceType | None = None)→ Move[source]
+        Finds a matching legal move for an origin square, a target square, and an optional promotion piece type.
+
+        For pawn moves to the backrank, the promotion piece type defaults to chess.QUEEN, unless otherwise specified.
+
+        Castling moves are normalized to king moves by two steps, except in Chess960.
+
+        Raises
+        :
+        IllegalMoveError if no matching legal move is found.
+
+
+You are allowed to use any python library you want but should not assume access to any other external resources (such as models with downloadable weights) unless otherwise specified. In particular you can assume access to the following APIs: 
+        None
+
+
+You should only write the Value class and nothing else. You are encouraged to be as creative as possible, do not simply copy one of the exemplars if given. All code should be written in a single, large code block.
