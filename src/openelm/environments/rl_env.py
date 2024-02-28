@@ -51,7 +51,7 @@ to any other external resources (such as models with downloadable weights) unles
 In particular you can assume access to the following APIs: \
 {api_description}\n\n\
 You should only write the Value class and nothing else. \
-You are encouraged to be as creative as possible, do not simply copy one of the exemplars if given. \
+Improve the given exemplar as much as possible, filling in as many details as you can. \
 All code should be written in a single, large code block.
 """
 
@@ -86,8 +86,8 @@ class RLValuePolicy(RLPolicy):
                  value_fn,
                  method: str="mcts", 
                  depth: int=10, 
-                 time_limit: float=2  ,
-                 rollout_limit: int=1000,
+                 time_limit: float=30,
+                 rollout_limit: int=10000,
                  num_procs=1,):
         self.rl_env = rl_env
         self.value_fn = value_fn.value

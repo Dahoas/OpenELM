@@ -277,13 +277,14 @@ class FunSearch:
                     with open(seed_file, "r") as f:
                         src = "\n".join(f.readlines())
                         program = Program(src)
-                        fitness = self.env.fitness(program)
+                        res = self.env.fitness(program)
+                        t = time.time()
+                        fitness = res["fitness"]
+                        fitness_runtime = time.time() - t
+                        res["fitness_runtime"] = fitness_runtime
                         island_ids = list(range(len(self.database.islands)))
                         self.database.add(program, fitness, island_ids=island_ids)
                         # Update stats
-                        res = dict(fitness=fitness,
-                               eval_runtimes=[],
-                               fitness_runtime=0,)
                         self.update_stats(self.start_step, program, res)
                         self.start_step += 1
         print(f"Loading finished! Starting on step {self.start_step}.")

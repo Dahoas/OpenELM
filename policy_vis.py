@@ -30,7 +30,7 @@ elm_env = ELMRLEnv(config=config,
 rl_env = elm_env.env
 
 # Set program
-policy_file = "init_policies/chess/value_4.py"
+policy_file = "init_policies/chess/value_5.py"
 with open(policy_file, "r") as f:
     src = f.readlines()
     src = "\n".join(src)

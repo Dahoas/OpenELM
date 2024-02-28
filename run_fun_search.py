@@ -26,11 +26,12 @@ def main(config):
     rl_env_name = "chess"
     config.output_dir = HydraConfig.get().runtime.output_dir
     config.model = ModelConfig(model_type="gptquery",
-                               model_path="gpt-3.5-turbo-1106",#"gpt-3.5-turbo-1106",
+                               model_path="gpt-3.5-turbo-1106",
                                gen_max_len=4096,
                                temp=1.0,
                                batch_size=1,)
-    seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/logs/elm/24-02-08_12:22/database.jsonl"
+    seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/logs/elm/24-02-08_16:01/database.jsonl"
+    seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/init_policies/chess/"
     config.qd = FunSearchConfig(seed_policies_dir=seeds)
     curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
     fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20,
