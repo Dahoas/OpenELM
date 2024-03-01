@@ -16,6 +16,9 @@ class BaseWrapper:
     
     def reset(self, seed):
         return self.env.reset(seed=seed)
+    
+    def render(self):
+        self.env.render()
 
 
 class MinigridBlockedUnlockPickupWrapper(BaseWrapper):
