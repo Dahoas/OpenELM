@@ -186,4 +186,15 @@ def move_towards(target_position, next_tile):
 """,
         api_list=["move_towards"],
     ),
+
+
+
+
+    "crafter": dict(
+        task_description="",
+        observation_description="",
+        action_description="",
+        reward_description="",
+        action_exemplar="",
+    ),
 }

@@ -11,17 +11,20 @@ from openelm.environments.rl_env import ELMRLEnv, Program
 from openelm.configs import RLEnvConfig, FitnessCurriculum
 
 
-rl_env_name = "chess"
-task_type = "value"
+rl_env_name = "MiniGrid-UnlockPickup-v0"
+task_type = "policy"
+rl_env_name_t = rl_env_name
+rl_env_name = rl_env_name.replace("-wrapped", "")
 curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
 fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20, curriculum=curriculum)
-config = RLEnvConfig(rl_env_name=rl_env_name,
+config = RLEnvConfig(rl_env_name=rl_env_name_t,
                      task_type=task_type,
                      task_description="",
                      observation_description="",
                      action_description="",
                      reward_description="",
                      action_exemplar="",
+                     api_list=[],
                      horizon=100,
                      fitness_curriculum=fitness_curriculum,)
 elm_env = ELMRLEnv(config=config,
@@ -30,7 +33,7 @@ elm_env = ELMRLEnv(config=config,
 rl_env = elm_env.env
 
 # Set program
-policy_file = "init_policies/chess/value_5.py"
+policy_file = "init_policies/door_key/policy_1_0.3.py"
 with open(policy_file, "r") as f:
     src = f.readlines()
     src = "\n".join(src)
@@ -39,7 +42,7 @@ policy = elm_env._extract_executable_policy(program=program)
 
 # Execution loop
 def execute():
-    time_per_action = .01 # Time between visualized moves in seconds
+    time_per_action = 1 # Time between visualized moves in seconds
     seed = np.random.randint(0, 1e9)
     observation, _ = rl_env.reset(seed=seed)
     rl_env.render()

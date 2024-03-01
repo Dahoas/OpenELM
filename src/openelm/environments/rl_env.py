@@ -41,7 +41,13 @@ You are responsible for designing a decision policy to solve the following task:
 You will write a python `Policy()`, which should be initializable without any parameters from the user, object which has two methods:
 - `def act(observation)` which takes in an observation and returns an action.
 - `update(observation, action, reward, next_observation)` which takes in the current observation, \
-chosen action, reward, and next_observation and updates any persistent memory/state between observations. \
+chosen action, reward, and next_observation and updates any persistent memory/state between observations.
+- `notes: list[str]` which is a list of signals tracked by the policy during execution. \
+The signals collected should be designed by you to improve future iterations of this policy.
+- `produce_report() -> str` which uses the collected notes to produce a few line summary you will receive on the \
+policy's performance. You should try to use this report to collect statistics understanding how your policy fails \
+or can be improved. In particular you should ensure you understand the dynamics of the environment, i.e. if the actions \
+you take actually result in the state you expect.
 Note: You should not assume any exploration outside of what is learned during the agent's single rollout in \
 the environment. This means you should not rely on Q-learning, etc.\n\n\
 The observation space is defined formally as: 
