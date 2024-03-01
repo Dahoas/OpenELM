@@ -229,7 +229,7 @@ def get_rl_env(rl_env_name, render_mode):
     if rl_env_name == "chess":
         from openelm.environments.rl_envs.chess_env import ChessEnv
         return ChessEnv(render_mode=render_mode)
-    return get_wrapped_env(rl_env_name)
+    return get_wrapped_env(rl_env_name, render_mode)
     
 
 class PolicyGenotype(Genotype):

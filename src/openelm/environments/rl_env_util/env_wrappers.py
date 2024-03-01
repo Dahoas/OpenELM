@@ -147,10 +147,10 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
         return observation, _
 
 
-def get_wrapped_env(rl_env_name):
+def get_wrapped_env(rl_env_name, render_mode):
     if "wrapped" in rl_env_name:
         rl_env_name = rl_env_name.replace("-wrapped", "")
-        env = gym.make(rl_env_name)
+        env = gym.make(rl_env_name, render_mode=render_mode)
         if rl_env_name == "MiniGrid-BlockedUnlockPickup-v0":
             return MinigridBlockedUnlockPickupWrapper(env)
         elif rl_env_name == "MiniGrid-UnlockPickup-v0":
@@ -158,4 +158,4 @@ def get_wrapped_env(rl_env_name):
         else:
             raise ValueError(f"No wrapper found for {rl_env_name}!!!")
     else:
-        return gym.make(rl_env_name)
+        return gym.make(rl_env_name, render_mode=render_mode)
