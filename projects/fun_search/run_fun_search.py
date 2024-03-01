@@ -23,27 +23,33 @@ from rl_env_descriptions import envs
     config_name="elmconfig",
 )
 def main(config):
-    rl_env_name = "chess"
+    rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
     config.output_dir = HydraConfig.get().runtime.output_dir
     config.model = ModelConfig(model_type="gptquery",
                                model_path="gpt-3.5-turbo-1106",
                                gen_max_len=4096,
                                temp=1.0,
                                batch_size=1,)
-    seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/logs/elm/24-02-08_16:01/database.jsonl"
-    seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/init_policies/chess/"
-    config.qd = FunSearchConfig(seed_policies_dir=seeds)
-    curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
-    fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20,
+    #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/logs/elm/24-02-08_16:01/database.jsonl"
+    #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/init_policies/chess/"
+    config.qd = FunSearchConfig()
+    #curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
+    num_eval_rollouts = 100
+    curriculum = [dict() for _ in range(num_eval_rollouts)]
+    fitness_curriculum = FitnessCurriculum(num_eval_rollouts=num_eval_rollouts,
                                            curriculum=curriculum,)
-    config.env = RLEnvConfig(rl_env_name=rl_env_name,
-                             task_type="value",
+    rl_env_name_t = rl_env_name
+    rl_env_name = rl_env_name.replace("-wrapped", "")
+    config.env = RLEnvConfig(rl_env_name=rl_env_name_t,
+                             task_type="policy",
                              task_description=envs[rl_env_name]["task_description"],
                              observation_description=envs[rl_env_name]["observation_description"],
                              action_description=envs[rl_env_name]["action_description"],
                              reward_description=envs[rl_env_name]["reward_description"],
                              action_exemplar=envs[rl_env_name]["action_exemplar"],
-                             fitness_curriculum=fitness_curriculum,)
+                             fitness_curriculum=fitness_curriculum,
+                             api_description="",
+                             api_list=[],)
 
     print("----------------- Config ---------------")
     print(OmegaConf.to_yaml(config))

@@ -35,7 +35,35 @@ class TaskType(Enum):
 
 def get_task_prompt(task_type: TaskType):
     if  task_type == TaskType.POLICY:
-        return ""
+        return """\
+You are responsible for designing a decision policy to solve the following task: 
+{task_description}\n\n\
+You will write a python `Policy()`, which should be initializable without any parameters from the user, object which has two methods:
+- `def act(observation)` which takes in an observation and returns an action.
+- `update(observation, action, reward, next_observation)` which takes in the current observation, \
+chosen action, reward, and next_observation and updates any persistent memory/state between observations. \
+Note: You should not assume any exploration outside of what is learned during the agent's single rollout in \
+the environment. This means you should not rely on Q-learning, etc.\n\n\
+The observation space is defined formally as: 
+{observation_description}\n\n\
+The action space is defined formally as:
+{action_description}\n\n\
+The rewards are defined formally as:
+{reward_description}\n\n\
+Consider the following example action sequence to familiairize yourself with the env dynamics\n\n\
+{action_exemplar}\n\n\
+You are allowed to use any python library you want but should not assume access \
+to any other external resources (such as models with downloadable weights) unless otherwise specified. \
+In particular you can assume access to the following APIs: \
+{api_description}\n\n\
+You should only write the Policy class and nothing else. \
+You are encouraged to be as creative as possible, do not simply copy one of the exemplars if given. \
+Your policy should also be robust to adversity. If it finds itself getting stuck, repeating the same moves, \
+it should try something new. Exploration is encouraged, but keep in mind the goal and the action preconditions.\
+Make sure when you are engaging in exploration, it is diverse and incentivizing discovery of new states.\n\
+Thank carefully about the order of steps you propose. Executing the right steps in the wrong order will be costly\n\
+All code should be written in a single, large code block.
+"""
     elif task_type == TaskType.VALUE:
         return """\
 You are responsible for designing a value function to solve the following task: 
@@ -195,7 +223,7 @@ def get_rl_env(rl_env_name, render_mode):
     if rl_env_name == "chess":
         from openelm.environments.rl_envs.chess_env import ChessEnv
         return ChessEnv(render_mode=render_mode)
-    return gym.make(rl_env_name, render_mode=render_mode)
+    return get_wrapped_env(rl_env_name)
     
 
 class PolicyGenotype(Genotype):
@@ -233,6 +261,7 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         self.task_type = TaskType.from_string(self.config.task_type)
         self.env = get_rl_env(self.config.rl_env_name, render_mode=render_mode)
         self.num_procs = num_procs
+        self.api_list = self.config.api_list
 
     def get_rng_state(self) -> Optional[np.random._generator.Generator]:
         warnings.warn("WARNING: rng state not used in this environment")
@@ -274,7 +303,10 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
     
     def _extract_executable_policy(self, program: Program):
         if self.task_type == TaskType.POLICY:
-            source = f"{program.src}\n\npolicy = Policy()"
+            api_imports = ""
+            for api in self.api_list:
+                api_imports += f"from openelm.environments.rl_env_util.api_lib import {api}\n"
+            source = f"{api_imports}{program.src}\n\npolicy = Policy()"
             result = dict()
             exec(source, result)
             policy_fn = result["policy"]
