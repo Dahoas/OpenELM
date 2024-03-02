@@ -186,15 +186,61 @@ def move_towards(target_position, next_tile):
 """,
         api_list=["move_towards"],
     ),
+   "crafter": dict(
+        task_description="""You are an agent in 2-D gridworld. You need to forage for food and water, find shelter to sleep, defend against monsters, collect materials, and build tools.
+        
 
+        You are allowed a budget of 1M environmnent steps and are evaluated by their success rates of the 22 achievements and by their geometric mean score. 
+""",
+        observation_description="""You can only see a (8, 8) square around the player. Additional information at any given moment is stored in the Player class. 
+`
+Player.pos: List[int] of length 2 storing x and y coordinates.
+Player.facing: Tuple[int,int]. Indicates direction that the player is facing:  
 
+        (-1, 0): 'player-left',
+        (+1, 0): 'player-right',
+        (0, -1): 'player-up',
+        (0, +1): 'player-down',
 
+Player.action: noop
+Player.inventory: Dict[str,int] keeping track of the 22 achievements. 
 
-    "crafter": dict(
-        task_description="",
-        observation_description="",
-        action_description="",
-        reward_description="",
-        action_exemplar="",
-    ),
+{'health': 9, 'food': 9, 'drink': 9, 'energy': 9, 'sapling': 0, 'wood': 0, 'stone': 0, 'coal': 0, 'iron': 0, 'diamond': 0, 'wood_pickaxe': 0, 'stone_pickaxe': 0, 'iron_pickaxe': 0, 'wood_sword': 0, 'stone_sword': 0, 'iron_sword': 0}
+Player.achievements: {'collect_coal': 0, 'collect_diamond': 0, 'collect_drink': 0, 'collect_iron': 0, 'collect_sapling': 0, 'collect_stone': 0, 'collect_wood': 0, 'defeat_skeleton': 0, 'defeat_zombie': 0, 'eat_cow': 0, 'eat_plant': 0, 'make_iron_pickaxe': 0, 'make_iron_sword': 0, 'make_stone_pickaxe': 0, 'make_stone_sword': 0, 'make_wood_pickaxe': 0, 'make_wood_sword': 0, 'place_furnace': 0, 'place_plant': 0, 'place_stone': 0, 'place_table': 0, 'wake_up': 0}
+
+Player.sleeping: bool. 
+Player._last_health: int 
+Player._hunger: int
+Player._thirst: int
+Player._fatigue: int
+Player._recover: int
+Player.health: int
+""",
+        action_description="""action: int such that\n\
+- 0  noop\n
+- 1  move_left\n
+- 2  move_right\n
+- 3  move_up\n
+- 4  move_down\n
+- 5  do\n
+- 6  sleep\n
+- 7  place_stone\n
+- 8  place_table\n
+- 9  place_furnace\n
+- 10 place_plant\n
+- 11 make_wood_pickaxe\n
+- 12 make_stone_pickaxe\n
+- 13 make_iron_pickaxe\n
+- 14 make_wood_sword\n
+- 15 make_stone_sword\n
+- 16 make_iron_sword\n
+""",
+        reward_description="""The sparse reward is +1 for unlocking an achievement during the episode and -0.1 or +0.1 for lost or regenerated health points.
+""",
+        action_exemplar="""
+""",
+        api_description="""
+""",
+        api_list=[],
+    ), 
 }
