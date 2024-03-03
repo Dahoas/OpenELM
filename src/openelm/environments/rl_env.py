@@ -9,6 +9,8 @@ from enum import Enum
 from dataclasses import asdict, dataclass
 from time import time
 import multiprocessing as mp
+import os
+import pathlib
 
 import numpy as np
 
@@ -35,41 +37,41 @@ class TaskType(Enum):
 
 def get_task_prompt(task_type: TaskType):
     if  task_type == TaskType.POLICY:
+        is_complete_keyword = "<DONE>"
         return """\
 You are responsible for designing a decision policy to solve the following task: 
-{task_description}\n\n\
+{{task_description}}\n\n\
 You will write a python `Policy()`, which should be initializable without any parameters from the user, object which has two methods:
 - `def act(observation)` which takes in an observation and returns an action.
 - `update(observation, action, reward, next_observation)` which takes in the current observation, \
 chosen action, reward, and next_observation and updates any persistent memory/state between observations.
-- `notes: list[str]` which is a list of signals tracked by the policy during execution. \
-The signals collected should be designed by you to improve future iterations of this policy.
-- `produce_report() -> str` which uses the collected notes to produce a few line summary you will receive on the \
-policy's performance. You should try to use this report to collect statistics understanding how your policy fails \
-or can be improved. In particular you should ensure you understand the dynamics of the environment, i.e. if the actions \
-you take actually result in the state you expect.
+- `report: dict` which collects observations and statistics from over the agent's execution to understand its performance in the environement.
+This is also a good way to test your own understanding of the environment's dynamics. This should be serializable.
+- `prepare_report(reports: list[dict]) -> str` which aggregates the contents of reports across multiple separate executions of the policy \
+to be read as a condensed summary when updating the policy for the next iteration.
 Note: You should not assume any exploration outside of what is learned during the agent's single rollout in \
 the environment. This means you should not rely on Q-learning, etc.\n\n\
 The observation space is defined formally as: 
-{observation_description}\n\n\
+{{observation_description}}\n\n\
 The action space is defined formally as:
-{action_description}\n\n\
+{{action_description}}\n\n\
 The rewards are defined formally as:
-{reward_description}\n\n\
+{{reward_description}}\n\n\
 Consider the following example action sequence to familiairize yourself with the env dynamics\n\n\
-{action_exemplar}\n\n\
+{{action_exemplar}}\n\n\
 You are allowed to use any python library you want but should not assume access \
 to any other external resources (such as models with downloadable weights) unless otherwise specified. \
 In particular you can assume access to the following APIs: \
-{api_description}\n\n\
+{{api_description}}\n\n\
 You should only write the Policy class and nothing else. \
 You are encouraged to be as creative as possible, do not simply copy one of the exemplars if given. \
 Your policy should also be robust to adversity. If it finds itself getting stuck, repeating the same moves, \
 it should try something new. Exploration is encouraged, but keep in mind the goal and the action preconditions.\
 Make sure when you are engaging in exploration, it is diverse and incentivizing discovery of new states.\n\
 Thank carefully about the order of steps you propose. Executing the right steps in the wrong order will be costly\n\
-All code should be written in a single, large code block.
-"""
+All code should be written in a single, large code block. \
+When you are finished with your response you should write {is_complete_keyword} at the very end outside any code blocks.
+""".format(is_complete_keyword=is_complete_keyword)
     elif task_type == TaskType.VALUE:
         return """\
 You are responsible for designing a value function to solve the following task: 
@@ -87,7 +89,7 @@ In particular you can assume access to the following APIs: \
 {api_description}\n\n\
 You should only write the Value class and nothing else. \
 Improve the given exemplar as much as possible, filling in as many details as you can. \
-All code should be written in a single, large code block.
+All code should be written in a single, large code block. \
 """
 
 
@@ -268,6 +270,11 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         self.env = get_rl_env(self.config.rl_env_name, render_mode=render_mode)
         self.num_procs = num_procs
         self.api_list = self.config.api_list
+        self.reports_dir = os.path.join(config.output_dir, "reports")
+        
+        # Make env reports folder in output dir
+        path = pathlib.Path(self.reports_dir)
+        path.mkdir(exist_ok=True, parents=True)
 
     def get_rng_state(self) -> Optional[np.random._generator.Generator]:
         warnings.warn("WARNING: rng state not used in this environment")
@@ -283,14 +290,18 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
             demo = "Examples of policies: \n\n\n"
             for exemplar in exemplars:
                 demo += f"```python\n{exemplar.src}```" + "\n\n"
-                demo += f"The average return for the policy is: {exemplar.fitness}. You should optionally use this to determine how to improve/fix the policy.\n\n"
+                demo += f"Average Policy Return:\n{exemplar.fitness}\n"
+                demo += f"Policy Report:\n{exemplar.report}\n"
+                demo += "Use the policy report to improve the given policy. Focus on fixing one thing at a time. This may include proposing \
+additional reports to better understand the policy's behavior."
             prompt += demo
-
         return prompt
 
     def _extract_src_code(self, response: str):
         """Extracts the last code block from the agents response"""
+        is_complete_keyword = "<DONE>"
         try:
+            response = response.replace(is_complete_keyword, "")
             return re.findall(r"```python\n([^`]*)```", response)[-1]
         except IndexError:
             return ""
@@ -330,12 +341,11 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         in the environment
         """
         env = self.env
-        def eval_fitness(env, env_params, program, semaphore, returns, eval_runtimes, rank):
+        def eval_fitness(env, env_params, program, seed, semaphore, returns, eval_runtimes, rank):
             semaphore.acquire()
             t = time()
             copy_env = env.deepcopy(mode="mp", **env_params) if hasattr(env, "deepcopy") else deepcopy(env)
             try:
-                seed = np.random.randint(0, 1e9)
                 observation, _ = copy_env.reset(seed=seed)
                 policy = self._extract_executable_policy(program)
                 rewards = []
@@ -347,6 +357,12 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
                     rewards.append(reward)
                     if terminated: break
                 ret = reduce(lambda x, y: self.config.discount * x + y, rewards[::-1], 0)
+                # Log report to report dir
+                if hasattr(policy, "policy") and hasattr(policy.policy, "report"):
+                    report = policy.policy.report
+                    report_file = os.path.join(self.reports_dir, f"{seed}.json")
+                    with open(report_file, "w") as f:
+                        json.dump(report, f)
             except Exception:
                 ret = -100.0
             returns[rank] = float(ret)
@@ -360,7 +376,8 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         procs = []
         for rank in range(self.config.fitness_curriculum.num_eval_rollouts):
             env_params = self.config.fitness_curriculum.curriculum[rank]
-            p = mp.Process(target=eval_fitness, args=(env, env_params, program, semaphore, returns, eval_runtimes, rank))
+            seed = np.random.randint(0, 1e9)
+            p = mp.Process(target=eval_fitness, args=(env, env_params, program, seed, semaphore, returns, eval_runtimes, rank))
             p.start()
             procs.append(p)
         for p in procs:
@@ -368,8 +385,26 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         returns = np.frombuffer(returns.get_obj(), dtype="d").tolist()
         eval_runtimes = np.frombuffer(eval_runtimes.get_obj(), dtype="d").tolist()
         fitness = np.mean(returns)
+        # Recover report
+        try:
+            reports = pathlib.Path(self.reports_dir).glob("*.json")
+            reports_dicts = []
+            for report in reports:
+                with open(report, "r") as f:
+                    report = json.load(f)
+                reports_dicts.append(report)
+            policy = self._extract_executable_policy(program)
+            report = policy.policy.prepare_report(reports_dicts)
+        except Exception:
+            report = ""
         res = dict(fitness=fitness, 
-                   eval_runtimes=eval_runtimes,)
+                   eval_runtimes=eval_runtimes,
+                   report=report,)
+        # Clear reports directory 
+        # NOTE: assumes fitness evaluation is single-threaded
+        reports = pathlib.Path(self.reports_dir).glob("*.json")
+        for report in reports:
+            report.unlink()
         return res
 
 

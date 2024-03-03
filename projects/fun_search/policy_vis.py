@@ -11,13 +11,11 @@ from openelm.environments.rl_env import ELMRLEnv, Program
 from openelm.configs import RLEnvConfig, FitnessCurriculum
 
 
-rl_env_name = "MiniGrid-UnlockPickup-v0"
+rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
 task_type = "policy"
-rl_env_name_t = rl_env_name
-rl_env_name = rl_env_name.replace("-wrapped", "")
 curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
 fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20, curriculum=curriculum)
-config = RLEnvConfig(rl_env_name=rl_env_name_t,
+config = RLEnvConfig(rl_env_name=rl_env_name,
                      task_type=task_type,
                      task_description="",
                      observation_description="",
@@ -42,7 +40,7 @@ policy = elm_env._extract_executable_policy(program=program)
 
 # Execution loop
 def execute():
-    time_per_action = 1 # Time between visualized moves in seconds
+    time_per_action = 0.1 # Time between visualized moves in seconds
     seed = np.random.randint(0, 1e9)
     observation, _ = rl_env.reset(seed=seed)
     rl_env.render()
@@ -77,6 +75,7 @@ def execute():
     print(json.dumps(info, indent=2))
     ret = reduce(lambda x, y: config.discount * x + y, rewards[::-1], 0)
     print("Reward: ", ret)
+    print(rewards)
     game_time = time.time() - game_start
     print("Game time: ", game_time)
 

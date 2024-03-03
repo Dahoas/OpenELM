@@ -26,7 +26,7 @@ def main(config):
     rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
     config.output_dir = HydraConfig.get().runtime.output_dir
     config.model = ModelConfig(model_type="gptquery",
-                               model_path="gpt-3.5-turbo-1106",
+                               model_path="gpt-4-0125-preview",  # gpt-3.5-turbo-1106
                                gen_max_len=4096,
                                temp=1.0,
                                batch_size=1,)
@@ -35,6 +35,7 @@ def main(config):
     config.qd = FunSearchConfig()
     #curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
     num_eval_rollouts = 100
+    horizon = 300
     curriculum = [dict() for _ in range(num_eval_rollouts)]
     fitness_curriculum = FitnessCurriculum(num_eval_rollouts=num_eval_rollouts,
                                            curriculum=curriculum,)
@@ -49,7 +50,8 @@ def main(config):
                              action_exemplar=envs[rl_env_name]["action_exemplar"],
                              fitness_curriculum=fitness_curriculum,
                              api_description="",
-                             api_list=[],)
+                             api_list=[],
+                             horizon=horizon,)
 
     print("----------------- Config ---------------")
     print(OmegaConf.to_yaml(config))
