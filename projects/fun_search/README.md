@@ -4,14 +4,7 @@ This is branch of the OpenELM repo explores using LLMs as policy improvement ope
 
 ## Installation
 
-0. Clone the repo and checkout the `rl_env` branch:
-
-```bash
-git clone https://github.com/Dahoas/OpenELM
-git checkout rl_env
-```
-
-2. Create a python venv to install OpenELM and pytorch (assumes CUDA version >= 12.1):
+0. Create a python venv to install OpenELM and pytorch (assumes CUDA version >= 12.1):
 
 ```bash
 python -m venv elm
@@ -19,7 +12,7 @@ source elm/bin/activate
 pip install torch torchvision torchaudio
 ```
 
-2. Install the gpt-query repository locally:
+1. Install the gpt-query repository locally:
 
 ```bash
 git clone https://github.com/Dahoas/gpt-query
@@ -27,14 +20,16 @@ cd gpt-query
 pip install -e .
 ```
 
-3. Install OpenELM with `rl_env` requirements:
+2. Clone the OpenELM repo and install the `rl_env` branch:
 
 ```bash
-cd ~/PATH_TO_OpenELM/OpenELM
+git clone https://github.com/Dahoas/OpenELM
+cd OpenELM
+git checkout rl_env
 pip install -e .
 ```
 
-4. Set your OPENAI_API key and test the installation:
+3. Set your OPENAI_API key and test the installation:
 
 ```bash
 export OPENAI_API=YOUR_API_KEY
