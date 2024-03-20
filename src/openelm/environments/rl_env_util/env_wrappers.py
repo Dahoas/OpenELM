@@ -5,6 +5,7 @@ https://gymnasium.farama.org/_modules/gymnasium/core/#Env
 import gymnasium as gym
 import numpy as np
 from minigrid.core.world_object import Door, Ball, Key
+from copy import deepcopy
 
 
 class BaseWrapper:
@@ -102,8 +103,10 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
         self.door_open = self.door_open or self.door.is_open
         return self.door_open
     
-    def get_through_door(self):
-        self.gone_through_door = self.gone_through_door or self.cur_observation["image"][3][6][0] == 4
+    def get_through_door(self, observation, action):
+        self.gone_through_door = self.gone_through_door or (action == 2 
+                                                            and observation["image"][3][5][0] == 4 
+                                                            and observation["image"][3][5][2] == 0)
         return self.gone_through_door
     
     def postprocess_obs(self, observation):
@@ -120,13 +123,15 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
         """
         prev_has_key = self.get_has_key()
         prev_door_open = self.get_door_open()
-        prev_through_door = self.get_through_door()
+        prev_through_door = self.get_through_door(self.prev_observation, action)
 
         observation, reward, terminated, _, _ = self.env.step(action)
+        print(observation["image"][3][6])
+        self.prev_observation = deepcopy(self.cur_observation)
         self.cur_observation = observation
         cur_has_key = self.get_has_key()
         cur_door_open = self.get_door_open()
-        cur_through_door = self.get_through_door()
+        cur_through_door = self.get_through_door(self.prev_observation, action)
 
         if not prev_has_key and cur_has_key:
             reward += 0.1
@@ -141,6 +146,7 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
     def reset(self, seed):
         observation, _ = self.env.reset(seed=seed)
         self.cur_observation = observation
+        self.prev_observation = deepcopy(observation)
         self.has_key = False
         self.has_ball = False
         self.door_open = False

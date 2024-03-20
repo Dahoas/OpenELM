@@ -32,7 +32,7 @@ elm_env = ELMRLEnv(config=config,
 rl_env = elm_env.env
 
 # Set program
-policy_file = "init_policies/door_key/policy_gpt4_0.22.py" #1_0.3.py"
+policy_file = "init_policies/door_key/human_policy.py" #1_0.3.py"
 with open(policy_file, "r") as f:
     src = f.readlines()
     src = "\n".join(src)
@@ -41,7 +41,7 @@ policy = elm_env._extract_executable_policy(program=program)
 
 # Execution loop
 def execute():
-    time_per_action = 1e-5 # Time between visualized moves in seconds
+    time_per_action = 1e-1 # Time between visualized moves in seconds
     seed = np.random.randint(0, 1e9)
     observation, _ = rl_env.reset(seed=seed)
     rl_env.render()
