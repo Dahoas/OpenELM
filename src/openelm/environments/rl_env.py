@@ -7,6 +7,7 @@ from functools import reduce
 from copy import deepcopy
 from enum import Enum
 from dataclasses import asdict, dataclass
+import time as time_t
 from time import time
 import multiprocessing as mp
 import os
@@ -20,6 +21,9 @@ from openelm.algorithms.fun_search import Program
 from openelm.environments.rl_env_util.env_wrappers import get_wrapped_env
 
 import gymnasium as gym
+
+
+EVAL_TIMEOUT = 60
 
 
 class TaskType(Enum):
@@ -44,11 +48,12 @@ You are responsible for designing a decision policy to solve the following task:
 You will write a python `Policy()`, which should be initializable without any parameters from the user, object which has two methods:
 - `def act(observation)` which takes in an observation and returns an action.
 - `update(observation, action, reward, next_observation)` which takes in the current observation, \
-chosen action, reward, and next_observation and updates any persistent memory/state between observations.
+chosen action, reward, and next_observation and updates any persistent memory/state between observations. \
+You should never assume the actions you take. `update` is a good place to test your understanding of the world and record the results.
 - `report: dict` which collects observations and statistics from over the agent's execution to understand its performance in the environement.
-This is also a good way to test your own understanding of the environment's dynamics. This should be serializable.
-- `prepare_report(reports: list[dict]) -> str` which aggregates the contents of reports across multiple separate executions of the policy \
-to be read as a condensed summary when updating the policy for the next iteration.
+This is also a good way to test your own understanding of the environment's dynamics. This should be serializable. \
+Each key should have the form 'name'/'aggregation' where 'name' is the metric name and 'aggregation' determines how the 
+statistic is aggregated over multiple runs. 'aggregation' should be one of ['mean', 'max', 'min']
 Note: You should not assume any exploration outside of what is learned during the agent's single rollout in \
 the environment. This means you should not rely on Q-learning, etc.\n\n\
 The observation space is defined formally as: 
@@ -112,6 +117,18 @@ class RLPolicy:
     
     def update(self, old_observation, action, reward, observation):
         return self.policy.update(old_observation, action, reward, observation)
+    
+    def prepare_report(self, reports):
+        if len(reports) == 0: return {}
+        agg_dict = {"mean": np.mean, "max": np.max, "min": np.min}
+        final_report = ""
+        for k in reports[0]:
+            agg_name = k.split("/")[-1]
+            agg = agg_dict.get(agg_name, np.mean)
+            stat = agg([report[k] for report in reports])
+            final_report += f"{k}: {stat}\n"
+        final_report += f"num_policy_runs: {len(reports)}"
+        return final_report
 
 
 class RLValuePolicy(RLPolicy):
@@ -246,6 +263,19 @@ class PolicyGenotype(Genotype):
 
     def to_phenotype(self) -> Phenotype:
         raise ValueError("Undecided phenotype for python policies")
+    
+    
+class PromptMode(Enum):
+    DEFAULT = 1
+    FEEDBACK = 2
+
+    @classmethod
+    def from_string(cls, name):
+        name_to_val = {val.name: val for val in cls}
+        if name_to_val.get(name.upper(), None):
+            return name_to_val[name.upper()]
+        else:
+            raise ValueError(f"Unknown name: {name}!!!")
 
 
 class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
@@ -285,15 +315,19 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         pass
 
     def _construct_prompt(self, exemplars: Optional[list[Program]] = None):
+        # Sample prompting mode
+        p = np.ones(len(PromptMode)) / len(PromptMode)
+        mode = np.random.choice(list(PromptMode), p=p)
         prompt = get_task_prompt(self.task_type).format(**asdict(self.config))
         if exemplars is not None:
             demo = "Examples of policies: \n\n\n"
             for exemplar in exemplars:
                 demo += f"```python\n{exemplar.src}```" + "\n\n"
                 demo += f"Average Policy Return:\n{exemplar.fitness}\n"
-                demo += f"Policy Report:\n{exemplar.report}\n"
-                demo += "Use the policy report to improve the given policy. Focus on fixing one thing at a time. This may include proposing \
-additional reports to better understand the policy's behavior."
+                if mode == PromptMode.FEEDBACK:
+                    demo += f"Policy Report: \n{exemplar.report}\n"
+                    demo += "Before writing any code think about what you can learn from the policy report. Focus on finding and fixing one thing at a time. This may include proposing \
+    additional reports to better understand the policy's behavior."
             prompt += demo
         return prompt
 
@@ -380,8 +414,24 @@ additional reports to better understand the policy's behavior."
             p = mp.Process(target=eval_fitness, args=(env, env_params, program, seed, semaphore, returns, eval_runtimes, rank))
             p.start()
             procs.append(p)
-        for p in procs:
-            p.join()
+        
+        def join_under_timeout(procs, time_limit):
+            t = time()
+            elapsed = time() - t
+            procs_done: list[bool] = len(procs)*[False]
+            while sum(procs_done) < len(procs) or elapsed > time_limit:
+                for i, p in enumerate(procs):
+                    # Check if process has finished running
+                    if not p.is_alive():
+                        procs_done[i] = True
+                        p.join()
+                time_t.sleep(1)
+                elapsed = time() - t
+            for p in procs:
+                p.terminate()
+                p.join()
+        join_under_timeout(procs, time_limit=EVAL_TIMEOUT)
+
         returns = np.frombuffer(returns.get_obj(), dtype="d").tolist()
         eval_runtimes = np.frombuffer(eval_runtimes.get_obj(), dtype="d").tolist()
         fitness = np.mean(returns)
@@ -394,7 +444,7 @@ additional reports to better understand the policy's behavior."
                     report = json.load(f)
                 reports_dicts.append(report)
             policy = self._extract_executable_policy(program)
-            report = policy.policy.prepare_report(reports_dicts)
+            report = policy.prepare_report(reports_dicts)
         except Exception:
             report = ""
         res = dict(fitness=fitness, 

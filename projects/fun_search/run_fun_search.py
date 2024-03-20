@@ -26,14 +26,15 @@ def main(config):
     rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
     config.output_dir = HydraConfig.get().runtime.output_dir
     config.model = ModelConfig(model_type="gptquery",
-                               model_path="gpt-4-0125-preview",  # gpt-3.5-turbo-1106
+                               model_path="gpt-3.5-turbo-0125", #"gpt-4-0125-preview",  # gpt-3.5-turbo-0125, # claude-3-haiku-20240307
                                gen_max_len=4096,
                                temp=1.0,
                                batch_size=1,)
     #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/logs/elm/24-02-08_16:01/database.jsonl"
     #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/init_policies/chess/"
-    config.qd = FunSearchConfig()
-    #curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
+    total_steps = 150
+    init_steps = 50
+    config.qd = FunSearchConfig(total_steps=total_steps, init_steps=init_steps)
     num_eval_rollouts = 100
     horizon = 300
     curriculum = [dict() for _ in range(num_eval_rollouts)]

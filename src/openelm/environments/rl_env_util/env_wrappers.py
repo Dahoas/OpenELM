@@ -105,6 +105,11 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
     def get_through_door(self):
         self.gone_through_door = self.gone_through_door or self.cur_observation["image"][3][6][0] == 4
         return self.gone_through_door
+    
+    def postprocess_obs(self, observation):
+        inv = [5] if Key not in self.get_grid_types() else []
+        observation = {"agent": observation, "inv": inv}
+        return observation
 
     def step(self, action):
         """
@@ -129,7 +134,8 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
             reward += 0.2
         elif not prev_through_door and cur_through_door:
             reward += 0.1
-
+            
+        observation = self.postprocess_obs(observation)
         return observation, reward, terminated, _, _
     
     def reset(self, seed):
@@ -147,6 +153,7 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
                 self.door = obj
         assert self.door is not None
 
+        observation = self.postprocess_obs(observation)
         return observation, _
 
 
