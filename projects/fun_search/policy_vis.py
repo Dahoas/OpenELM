@@ -23,7 +23,7 @@ config = RLEnvConfig(rl_env_name=rl_env_name,
                      reward_description="",
                      action_exemplar="",
                      api_list=[],
-                     horizon=100,
+                     horizon=horizon,
                      fitness_curriculum=fitness_curriculum,)
 elm_env = ELMRLEnv(config=config,
                    mutation_model=None,
@@ -31,7 +31,7 @@ elm_env = ELMRLEnv(config=config,
 rl_env = elm_env.env
 
 # Set program
-policy_file = "init_policies/door_key/policy_1_0.3.py"
+policy_file = "init_policies/door_key/policy_update_geminiA_3.py" #1_0.3.py"
 with open(policy_file, "r") as f:
     src = f.readlines()
     src = "\n".join(src)
