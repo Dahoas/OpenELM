@@ -15,7 +15,7 @@ rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
 task_type = "policy"
 curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
 fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20, curriculum=curriculum)
-horizon = 500
+horizon = 300
 config = RLEnvConfig(rl_env_name=rl_env_name,
                      task_type=task_type,
                      task_description="",
@@ -32,7 +32,7 @@ elm_env = ELMRLEnv(config=config,
 rl_env = elm_env.env
 
 # Set program
-policy_file = "init_policies/door_key/policy_update_geminiA_3.py" #1_0.3.py"
+policy_file = "init_policies/door_key/policy_gpt4_0.22.py" #1_0.3.py"
 with open(policy_file, "r") as f:
     src = f.readlines()
     src = "\n".join(src)
@@ -41,7 +41,7 @@ policy = elm_env._extract_executable_policy(program=program)
 
 # Execution loop
 def execute():
-    time_per_action = 0.1 # Time between visualized moves in seconds
+    time_per_action = 1e-5 # Time between visualized moves in seconds
     seed = np.random.randint(0, 1e9)
     observation, _ = rl_env.reset(seed=seed)
     rl_env.render()
@@ -79,6 +79,15 @@ def execute():
     print(rewards)
     game_time = time.time() - game_start
     print("Game time: ", game_time)
+    
+    print(hasattr(policy, "policy"))
+    print(hasattr(policy.policy, "prepare_report"))
+    if hasattr(policy, "policy") and hasattr(policy.policy, "prepare_report"):
+        stats = policy.policy.report
+        print(stats)
+        report = policy.policy.prepare_report([stats])
+        with open("report.txt", "w") as f:
+            f.write(report)
 
 
 def evaluate():
