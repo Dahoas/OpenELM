@@ -29,6 +29,7 @@ class Program(Genotype):
   src: str
   fitness: Optional[float] = None
   island_id: Optional[int] = None
+  report: str = ""
 
   def __str__(self) -> str:
      return self.src
@@ -88,7 +89,8 @@ class Database:
         obj = dict(
            src=program.src,
            fitness=fitness,
-           islands=island_ids,           
+           islands=island_ids,
+           report=program.report,           
         )
         json.dump(obj, f)
         f.write("\n")
@@ -265,6 +267,7 @@ class FunSearch:
                     program = Program(src)
                     fitness = sample["fitness"]
                     islands = sample["islands"]
+                    program.report = sample.get("report", "")
                     self.database.add(program, fitness, island_ids=islands)
                     # Update stats
                     res = dict(fitness=fitness,
@@ -278,10 +281,11 @@ class FunSearch:
                     with open(seed_file, "r") as f:
                         src = "\n".join(f.readlines())
                         program = Program(src)
-                        res = self.env.fitness(program)
                         t = time.time()
-                        fitness = res["fitness"]
+                        res = self.env.fitness(program)
                         fitness_runtime = time.time() - t
+                        fitness = res["fitness"]
+                        program.report = res["report"]
                         res["fitness_runtime"] = fitness_runtime
                         island_ids = list(range(len(self.database.islands)))
                         self.database.add(program, fitness, island_ids=island_ids)
@@ -334,6 +338,7 @@ class FunSearch:
                 res = self.env.fitness(individual)
                 fitness_runtime = time.time() - t
                 fitness = res["fitness"]
+                individual.report = res["report"]
                 if np.isinf(fitness):
                     continue
                 individual.fitness = fitness

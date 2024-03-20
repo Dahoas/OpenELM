@@ -71,7 +71,8 @@ class GPTModel(MutationModel):
         Generates programs using prompts in prompt_dicts.
         + prompt_dicts: List of dicts with "prompt" field
         """
-        results = self.model(prompt_dicts)
+        is_complete_keyword = "<DONE>"
+        results = self.model(prompt_dicts, is_complete_keyword=is_complete_keyword)
         responses = [res["response"] for res in results]
         return responses
 
