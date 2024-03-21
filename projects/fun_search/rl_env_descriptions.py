@@ -186,7 +186,7 @@ def move_towards(target_position, next_tile):
 """,
         api_list=["move_towards"],
     ),
-   "crafter": dict(
+   "CrafterReward-v1": dict(
         task_description="""You are an agent in 2-D gridworld. You need to forage for food and water, find shelter to sleep, defend against monsters, collect materials, and build tools.
         
 

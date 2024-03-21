@@ -1,0 +1,45 @@
+\You are responsible for designing a decision policy to solve the following task: 
+The agent has to pick up a box which is placed in another room, behind a locked door. This environment can be solved without relying on language.
+
+
+You will write a python `Policy()`, which should be initializable without any parameters from the user, object which has two methods:
+- `def act(observation)` which takes in an observation and returns an action.
+- `update(observation, action, reward, next_observation)` which takes in the current observation, chosen action, reward, and next_observation and updates any persistent memory/state between observations.
+- `notes: list[str]` which is a list of signals tracked by the policy during execution. The signals collected should be designed by you to improve future iterations of this policy.
+- `produce_report() -> str` which uses the collected notes to produce a few line summary you will receive on the policy's performance. You should try to use this report to collect statistics understanding how your policy fails or can be improved. In particular you should ensure you understand the dynamics of the environment, i.e. if the actions you take actually result in the state you expect.
+Note: You should not assume any exploration outside of what is learned during the agent's single rollout in the environment. This means you should not rely on Q-learning, etc.
+
+The observation space is defined formally as: 
+You can only see a (7, 7) square of tiles in the direction you are facing. Formally `observation: Dict('direction': Discrete(4), 'image':  array: (7, 7, 3)))` where:
+- observation['direction'] with 0: right, 1: down, 2: left, 3: up
+- observation['image'] array with shape (7, 7, 3) with each tile in the (7, 7) grid encoded as the triple (object: int, color: int, state: int) where
+    - object with 0: unseen, 1: empty, 2: wall, 3: floor, 4: door, 5: key, 6: ball, 7: box, 8: goal, 9: lava
+    - color with 0: red, 1: green, 2: blue, 3: purple, 4: yellow, 5: grey
+    - state with 0: door open, 1: door closed, 2: door locked
+Note, the agent is always located at observation['image'][3][6] with observation['image'][2] to the left and observation['image'][4] to the right and observation['image'][3][5] forward.
+
+
+The action space is defined formally as:
+action: int such that
+- 0: turn left
+- 1: turn right
+- 2: move forward, Precondition: Forward tile must be empty
+- 3: pickup item, Precondition: must be standing in tile adjacent to object and facing it (item must be on observation['image'][3][5]). Cannot be holding another object
+- 4: drop item, Precondition: Must be holding item. Tile you are facing must be empty
+- 5: toggle key to open door, Precondition: Must have key and be facing the door (door is on observation['image'][3][5])
+
+
+The rewards are defined formally as:
+A reward of ‘1 - 0.9 * (step_count / max_steps)’ is given for success, and ‘0’ for failure.+0.1 for picking up the key for the first time. +0.2 for opening the door.
+
+
+Consider the following example action sequence to familiairize yourself with the env dynamics
+
+
+
+
+You are allowed to use any python library you want but should not assume access to any other external resources (such as models with downloadable weights) unless otherwise specified. In particular you can assume access to the following APIs: 
+
+You should only write the Policy class and nothing else. You are encouraged to be as creative as possible, do not simply copy one of the exemplars if given. Your policy should also be robust to adversity. If it finds itself getting stuck, repeating the same moves, it should try something new. Exploration is encouraged, but keep in mind the goal and the action preconditions.Make sure when you are engaging in exploration, it is diverse and incentivizing discovery of new states.
+Thank carefully about the order of steps you propose. Executing the right steps in the wrong order will be costly
+All code should be written in a single, large code block.

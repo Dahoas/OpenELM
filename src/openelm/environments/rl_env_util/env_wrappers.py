@@ -5,6 +5,7 @@ https://gymnasium.farama.org/_modules/gymnasium/core/#Env
 import gymnasium as gym
 import numpy as np
 from minigrid.core.world_object import Door, Ball, Key
+import crafter 
 
 
 class BaseWrapper:

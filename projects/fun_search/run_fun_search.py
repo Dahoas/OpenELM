@@ -23,7 +23,7 @@ from rl_env_descriptions import envs
     config_name="elmconfig",
 )
 def main(config):
-    rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
+    rl_env_name = "CrafterReward-v1"
     config.output_dir = HydraConfig.get().runtime.output_dir
     config.model = ModelConfig(model_type="gptquery",
                                model_path="gpt-3.5-turbo-1106",

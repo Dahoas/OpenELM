@@ -12,7 +12,7 @@ from openelm.configs import RLEnvConfig, FitnessCurriculum
 from rl_env_descriptions import envs
 
 
-rl_env_name = "crafter"
+rl_env_name = "CrafterReward-v1"
 rl_env_name_t = rl_env_name
 task_type = "policy"
 curriculum = [{"stockfish_depth": i} for i in range(1, 21)]

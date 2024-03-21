@@ -226,9 +226,15 @@ class RLValuePolicy(RLPolicy):
         
 
 def get_rl_env(rl_env_name, render_mode):
+    print(f"Creating environment: {rl_env_name}")
+    print(f"crafter in {rl_env_name.lower()}: {'crafter' in rl_env_name.lower()}")
     if rl_env_name == "chess":
         from openelm.environments.rl_envs.chess_env import ChessEnv
         return ChessEnv(render_mode=render_mode)
+    elif "crafter" in rl_env_name.lower():
+        import gym as old_gym
+        import crafter 
+        return old_gym.make(rl_env_name)
     return get_wrapped_env(rl_env_name, render_mode)
     
 
