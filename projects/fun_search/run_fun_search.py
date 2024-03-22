@@ -18,6 +18,9 @@ from openelm import ELM
 from openelm.configs import ModelConfig, FunSearchConfig, RLEnvConfig, FitnessCurriculum
 from rl_env_descriptions import envs
 
+import os
+from gptquery.logger import Logger as gpt_logger
+
 
 @hydra.main(
     config_name="elmconfig",
@@ -30,10 +33,12 @@ def main(config):
                                gen_max_len=4096,
                                temp=1.0,
                                batch_size=1,)
+    model_log_file = os.path.join(config.output_dir, "model_responses.jsonl")
+    gpt_logger.init(model_log_file)
     #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/logs/elm/24-02-08_16:01/database.jsonl"
     #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/init_policies/chess/"
-    total_steps = 150
-    init_steps = 50
+    total_steps = 500
+    init_steps = 250
     config.qd = FunSearchConfig(total_steps=total_steps, init_steps=init_steps)
     num_eval_rollouts = 100
     horizon = 300

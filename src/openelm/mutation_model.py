@@ -62,7 +62,7 @@ class GPTModel(MutationModel):
                          max_num_tokens=config.gen_max_len,
                          mb_size=config.batch_size,
                          task_prompt_text="{prompt}",
-                         log=False,
+                         log=True,
                          verbose=True,
                          oai_key=openai_api)
         
