@@ -11,34 +11,6 @@ from openelm.environments.rl_env import ELMRLEnv, Program
 from openelm.configs import RLEnvConfig, FitnessCurriculum
 
 
-rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
-task_type = "policy"
-curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
-fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20, curriculum=curriculum)
-horizon = 300
-config = RLEnvConfig(rl_env_name=rl_env_name,
-                     task_type=task_type,
-                     task_description="",
-                     observation_description="",
-                     action_description="",
-                     reward_description="",
-                     action_exemplar="",
-                     api_list=[],
-                     horizon=horizon,
-                     fitness_curriculum=fitness_curriculum,)
-elm_env = ELMRLEnv(config=config,
-                   mutation_model=None,
-                   render_mode="human",)
-rl_env = elm_env.env
-
-# Set program
-policy_file = "init_policies/door_key/human_policy.py" #1_0.3.py"
-with open(policy_file, "r") as f:
-    src = f.readlines()
-    src = "\n".join(src)
-program = Program(src=src)
-policy = elm_env._extract_executable_policy(program=program)
-
 # Execution loop
 def execute():
     time_per_action = 1e-1 # Time between visualized moves in seconds
@@ -91,9 +63,11 @@ def execute():
 
 
 def evaluate():
-    res = elm_env.fitness(program)
+    res = elm_env.fitness(src)
     print(json.dumps(res, indent=2))
-
+    with open("report.json", "w") as f:
+        json.dump(res, f, indent=2)
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -105,6 +79,34 @@ if __name__ == "__main__":
         func = execute
     else:
         func = evaluate
+        
+    rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
+    task_type = "policy"
+    curriculum = [{"stockfish_depth": i} for i in range(1, 2)]  # 20
+    fitness_curriculum = FitnessCurriculum(num_eval_rollouts=1, curriculum=curriculum)
+    horizon = 5  # 300
+    config = RLEnvConfig(rl_env_name=rl_env_name,
+                        task_type=task_type,
+                        task_description="",
+                        observation_description="",
+                        action_description="",
+                        reward_description="",
+                        action_exemplar="",
+                        api_list=[],
+                        horizon=horizon,
+                        fitness_curriculum=fitness_curriculum,)
+    render_mode = "human" if args.mode == "execute" else None
+    elm_env = ELMRLEnv(config=config,
+                    mutation_model=None,
+                    render_mode=render_mode,)
+    rl_env = elm_env.env
+
+    # Set program
+    policy_file = "init_policies/door_key/report_design/policy_3_gpt4.py"#human_policy.py"#report_design/policy_3_gpt4.py" #1_0.3.py"
+    with open(policy_file, "r") as f:
+        src = f.readlines()
+        src = "\n".join(src)
+    policy = elm_env._extract_executable_policy(program=src)
 
     if args.profile:
         cProfile.run(f"{func.__name__}()")

@@ -1,4 +1,6 @@
 import numpy as np
+import json
+import torch
 
 
 def get_image_target(name: str) -> np.ndarray:
@@ -23,3 +25,40 @@ def draw():
 """
 
 NULL_SEED: str = ""
+
+
+def _convert(v):
+    # Convert numpy objects
+    numpy_dtypes = [np.int32, np.int64, np.float32, np.float64]
+    if type(v) is np.ndarray:
+        v = v.tolist()
+    elif type(v) in numpy_dtypes:
+        v = float(v)
+    # Convert tensors
+    elif type(v) is torch.tensor:
+        v = v.tolist()
+    return v
+
+
+def _serialize(d):
+    """
+    Serialize all values of 'd' recursively.
+    """
+    if type(d) is dict:     
+        for k, v in d.items():
+            d[k] = _serialize(v)
+    elif type(d) is list:
+        for i in range(len(d)):
+            d[i] = _serialize(d[i])
+    else:
+        d = _convert(d)
+    return d
+
+
+def robust_dump_json(d: dict, file_name: str):
+    """
+    Dump dict 'd' to file 'file_name' but first serialize values of 'd'.
+    """
+    d = _serialize(d)
+    with open(file_name, "w") as f:
+        json.dump(d, f)
