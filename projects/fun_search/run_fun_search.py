@@ -38,7 +38,7 @@ def main(config):
     #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/logs/elm/24-02-08_16:01/database.jsonl"
     #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/init_policies/chess/"
     total_steps = 500
-    init_steps = 250
+    init_steps = 25
     config.qd = FunSearchConfig(total_steps=total_steps, init_steps=init_steps)
     num_eval_rollouts = 100
     horizon = 300

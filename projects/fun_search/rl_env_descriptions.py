@@ -169,7 +169,7 @@ observation['image'][2] to the left and observation['image'][4] to the right and
 - 5: toggle key to open door, Precondition: Must have key and be facing the door (door is on observation['image'][3][5])
 """,
         reward_description="""A reward of ‘1 - 0.9 * (step_count / max_steps)’ is given for success, and ‘0’ for failure.\
-+0.1 for picking up the key for the first time. +0.2 for opening the door, and +0.1 for going through the door.
++0.1 for picking up the key for the first time. +0.2 for opening the door, and +0.1 for going through the door, +0.1 for putting down the key after opening the door.
 """,
         action_exemplar="""
 """,
