@@ -113,6 +113,10 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
         inv = [5] if Key not in self.get_grid_types() else []
         observation = {"agent": observation, "inv": inv}
         return observation
+    
+    def get_put_down_key(self):
+        self.put_down_key = self.put_down_key or (self.has_key and Key in self.get_grid_types())
+        return self.put_down_key
 
     def step(self, action):
         """
@@ -124,20 +128,23 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
         prev_has_key = self.get_has_key()
         prev_door_open = self.get_door_open()
         prev_through_door = self.get_through_door(self.prev_observation, action)
+        prev_put_down_key = self.get_put_down_key()
 
         observation, reward, terminated, _, _ = self.env.step(action)
-        print(observation["image"][3][6])
         self.prev_observation = deepcopy(self.cur_observation)
         self.cur_observation = observation
         cur_has_key = self.get_has_key()
         cur_door_open = self.get_door_open()
         cur_through_door = self.get_through_door(self.prev_observation, action)
+        cur_put_down_key = self.get_put_down_key()
 
         if not prev_has_key and cur_has_key:
             reward += 0.1
         elif not prev_door_open and cur_door_open:
             reward += 0.2
         elif not prev_through_door and cur_through_door:
+            reward += 0.1
+        elif not prev_put_down_key and cur_put_down_key and cur_door_open:
             reward += 0.1
             
         observation = self.postprocess_obs(observation)
@@ -151,6 +158,7 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
         self.has_ball = False
         self.door_open = False
         self.gone_through_door = False
+        self.put_down_key = False
 
         self.grid = self.env.grid.grid
         self.door = None
