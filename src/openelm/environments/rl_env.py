@@ -374,13 +374,13 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
     def random(self) -> list[Program]:
         prompts = [{"prompt": self._construct_prompt()} for _ in range(self.config.batch_size)]
         responses = [self.mutation_model.generate_programs([prompt])[0] for prompt in prompts]
-        new_programs = [Program(self._extract_src_code(response)) for response in responses]
+        new_programs = [self._extract_src_code(response) for response in responses]
         return new_programs
     
     def mutate(self, sol_list: List[List[Program]]) -> list[Program]:
         prompts = [{"prompt": self._construct_prompt(sols)} for sols in sol_list]
         responses = [self.mutation_model.generate_programs([prompt])[0] for prompt in prompts]
-        new_programs = [Program(self._extract_src_code(response)) for response in responses]
+        new_programs = [self._extract_src_code(response) for response in responses]
         return new_programs
     
     def _extract_executable_policy(self, program: str):

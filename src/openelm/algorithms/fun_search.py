@@ -86,16 +86,14 @@ class Database:
     self.tot_programs = 0
 
   def log(self, 
-          program: Program, 
-          fitness: float,
-          island_ids: List[int],):
+          program: Program,):
     """Log program and fitness"""
     with open(self.log_file, "a") as f:
         obj = dict(
            src=program.src,
-           fitness=fitness,
-           islands=island_ids,
-           trajectories=program.trajectories,           
+           fitness=program.fitness,
+           island_id=program.island_id,
+           trajectory_path=program.trajectory_path,           
         )
         json.dump(obj, f)
         f.write("\n")
@@ -359,7 +357,7 @@ class FunSearch:
         self.stats["fitness_runtimes"].append(res["fitness_runtime"])
         if fitness > self.stats["best_fitness"]:
             self.stats["best_fitness"] = fitness
-            self.stats["best_program"] = individual.src
+            self.stats["best_program"] = individual
             self.stats["best_step"] = n_steps
         self.stats["step"] = n_steps
         if n_steps % self.config.log_stats_steps == 0:
