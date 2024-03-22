@@ -286,7 +286,8 @@ class PolicyGenotype(Genotype):
     
     
 class PromptMode(Enum):
-    DEFAULT = 1
+    SAMPLING = 0
+    MUTATION = 1
     FEEDBACK = 2
 
     @classmethod
@@ -349,7 +350,7 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         p = p / sum(p)
         mode = np.random.choice(list(PromptMode), p=p)
         prompt = get_task_prompt(self.task_type).format(**asdict(self.config))
-        if exemplars is not None:
+        if exemplars is not None and p != PromptMode.SAMPLING:
             demo = "Examples of policies: \n\n\n"
             for exemplar in exemplars:
                 demo += f"```python\n{exemplar.src}```" + "\n\n"
