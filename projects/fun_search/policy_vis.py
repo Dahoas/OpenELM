@@ -67,24 +67,41 @@ def evaluate():
     print(json.dumps(res, indent=2))
     with open("report.json", "w") as f:
         json.dump(res, f, indent=2)
+
+        
+def compute_metrics():
+    trajectory_path = "logs/trajectories/e90d2da8-4424-4946-8315-5fe792c91a66.json"
+    metrics_path = "init_policies/door_key/offline_analysis/metric_5.py"
+    with open(metrics_path, "r") as f:
+        metric = "\n".join(f.readlines())
+        src = f"{metric}\n\nmetrics = Metrics()"
+        result = dict()
+        exec(src, result)
+        metrics = result["metrics"]
+    with open(trajectory_path, "r") as f:
+        trajectories = json.load(f)
+    metrics = metrics.metrics(trajectories)
+    print(json.dumps(metrics, indent=2))
     
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", action="store_true")
-    parser.add_argument("--mode", choices=["execute", "evaluate"])
+    parser.add_argument("--mode", choices=["execute", "evaluate", "compute_metrics"])
     args = parser.parse_args()
 
     if args.mode == "execute":
         func = execute
-    else:
+    elif args.mode == "evaluate":
         func = evaluate
+    else:
+        func = compute_metrics
         
     rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
     task_type = "policy"
-    curriculum = [{"stockfish_depth": i} for i in range(1, 2)]  # 20
-    fitness_curriculum = FitnessCurriculum(num_eval_rollouts=1, curriculum=curriculum)
-    horizon = 5  # 300
+    curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
+    fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20, curriculum=curriculum)
+    horizon = 300  # 300
     config = RLEnvConfig(rl_env_name=rl_env_name,
                         task_type=task_type,
                         task_description="",
@@ -102,7 +119,7 @@ if __name__ == "__main__":
     rl_env = elm_env.env
 
     # Set program
-    policy_file = "init_policies/door_key/report_design/policy_3_gpt4.py"#human_policy.py"#report_design/policy_3_gpt4.py" #1_0.3.py"
+    policy_file = "init_policies/door_key/offline_analysis/policy_1.py"#human_policy.py"#report_design/policy_3_gpt4.py" #1_0.3.py"
     with open(policy_file, "r") as f:
         src = f.readlines()
         src = "\n".join(src)
