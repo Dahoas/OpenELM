@@ -7,30 +7,20 @@ import json
 import cProfile
 import argparse
 
-from openelm.environments.rl_env import ELMRLEnv, Program
-from openelm.configs import RLEnvConfig, FitnessCurriculum
 from rl_env_descriptions import envs
+from openelm.environments.rl_env_util.prompts import prompts
 
+
+policy_file = "init_policies/door_key/offline_analysis/policy_1.py"#human_policy.py"#report_design/policy_3_gpt4.py" #1_0.3.py"
+with open(policy_file, "r") as f:
+    src = f.readlines()
+    src = "\n".join(src)
 
 rl_env_name = "MiniGrid-UnlockPickup-v0"
-rl_env_name_t = rl_env_name
-task_type = "policy"
-curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
-fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20, curriculum=curriculum)
-config = RLEnvConfig(rl_env_name=rl_env_name_t,
-                             task_type="policy",
-                             task_description=envs[rl_env_name]["task_description"],
-                             observation_description=envs[rl_env_name]["observation_description"],
-                             action_description=envs[rl_env_name]["action_description"],
-                             reward_description=envs[rl_env_name]["reward_description"],
-                             action_exemplar=envs[rl_env_name]["action_exemplar"],
-                             fitness_curriculum=fitness_curriculum,
-                             api_description="",
-                             api_list=[],)
-elm_env = ELMRLEnv(config=config,
-                   mutation_model=None,
-                   render_mode="human",)
+prompt = ""
+prompt += prompts["env_prompt"].format(**envs[rl_env_name])
+prompt += prompts["policy_prompt"].format(policy=src, ret=0.4)
+prompt += prompts["metrics_prompt"]
 
-prompt = elm_env._construct_prompt()
-with open("dump.txt", "w") as f:
+with open("prompt.txt", "w") as f:
     f.write(prompt)

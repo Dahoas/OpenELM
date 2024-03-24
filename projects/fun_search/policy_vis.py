@@ -71,16 +71,10 @@ def evaluate():
         
 def compute_metrics():
     trajectory_path = "logs/trajectories/e90d2da8-4424-4946-8315-5fe792c91a66.json"
-    metrics_path = "init_policies/door_key/offline_analysis/metric_5.py"
-    with open(metrics_path, "r") as f:
-        metric = "\n".join(f.readlines())
-        src = f"{metric}\n\nmetrics = Metrics()"
-        result = dict()
-        exec(src, result)
-        metrics = result["metrics"]
+    from metrics import compute_metrics as cm
     with open(trajectory_path, "r") as f:
         trajectories = json.load(f)
-    metrics = metrics.metrics(trajectories)
+    metrics = cm(trajectories)
     print(json.dumps(metrics, indent=2))
     
 

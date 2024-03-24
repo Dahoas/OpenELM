@@ -426,10 +426,9 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
                     if terminated: break
                 ret = reduce(lambda x, y: self.config.discount * x + y, rewards[::-1], 0)
                 trajectory = {"observations": observations, "actions": actions, "rewards": rewards}
-                # Log report to report dir
-                if hasattr(policy, "policy") and hasattr(policy.policy, "report"):
-                    report_file = os.path.join(self.scratch_dir, f"{seed}.json")
-                    robust_dump_json(trajectory, report_file)
+                # Log trajectory data
+                report_file = os.path.join(self.scratch_dir, f"{seed}.json")
+                robust_dump_json(trajectory, report_file)
             except Exception:
                 ret = -100.0
             returns[rank] = float(ret)
