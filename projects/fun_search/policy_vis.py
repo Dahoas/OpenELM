@@ -11,7 +11,7 @@ from openelm.environments.rl_env import ELMRLEnv, Program
 from openelm.configs import RLEnvConfig, FitnessCurriculum
 
 
-rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
+rl_env_name = "CrafterReward-v1"
 task_type = "policy"
 curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
 fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20, curriculum=curriculum)
@@ -28,11 +28,11 @@ config = RLEnvConfig(rl_env_name=rl_env_name,
                      fitness_curriculum=fitness_curriculum,)
 elm_env = ELMRLEnv(config=config,
                    mutation_model=None,
-                   render_mode="human",)
+                   render_mode="human")
 rl_env = elm_env.env
 
 # Set program
-policy_file = "init_policies/door_key/policy_update_geminiA_3.py" #1_0.3.py"
+policy_file = "/home/tsawada/Files/projects/o2401/OpenELM/projects/fun_search/seed_policies/gpt4/2403281630.py" #1_0.3.py"
 with open(policy_file, "r") as f:
     src = f.readlines()
     src = "\n".join(src)
@@ -43,19 +43,20 @@ policy = elm_env._extract_executable_policy(program=program)
 def execute():
     time_per_action = 0.1 # Time between visualized moves in seconds
     seed = np.random.randint(0, 1e9)
-    observation, _ = rl_env.reset(seed=seed)
+    observation = rl_env.reset()
     rl_env.render()
     rewards = []
     game_start = time.time()
     for step in range(config.horizon):
         print("Step num: ", step)
         t = time.time()
+        print(f"Step {step} observation: {observation}")
         action = policy.act(observation)
         elapsed = time.time() - t
         print("Policy time: ", elapsed)
         old_observation = observation
         t = time.time()
-        observation, reward, terminated, _, info = rl_env.step(action)
+        observation, reward, terminated, _  = rl_env.step(action)
         elapsed = time.time() - t
         print("Env time: ", elapsed)
         rewards.append(reward)
@@ -72,8 +73,10 @@ def execute():
         else:
             time.sleep(time_per_action)
         if terminated: break
-    print("Info: ")
-    print(json.dumps(info, indent=2))
+    
+    # info = rl_env.get_info()
+    # print("Info: ")
+    # print(json.dumps(info, indent=2))
     ret = reduce(lambda x, y: config.discount * x + y, rewards[::-1], 0)
     print("Reward: ", ret)
     print(rewards)

@@ -106,6 +106,7 @@ class RLPolicy:
             rl_env_copy.restore()
 
     def act(self, observation):
+        # print(f"observation: {observation}")
         return self.policy.act(observation)
     
     def update(self, old_observation, action, reward, observation):
