@@ -91,3 +91,7 @@ sodaracer = [
     "box2d-py==2.3.8",
     "pygame"
 ]
+rlenv = [
+    "gymnasium",
+    "minigrid"
+]

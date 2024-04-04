@@ -18,6 +18,9 @@ from openelm import ELM
 from openelm.configs import ModelConfig, FunSearchConfig, RLEnvConfig, FitnessCurriculum
 from rl_env_descriptions import envs
 
+import os
+from gptquery.logger import Logger as gpt_logger
+
 
 @hydra.main(
     config_name="elmconfig",
@@ -26,15 +29,19 @@ def main(config):
     rl_env_name = "CrafterReward-v1"
     config.output_dir = HydraConfig.get().runtime.output_dir
     config.model = ModelConfig(model_type="gptquery",
-                               model_path="gpt-3.5-turbo-1106",
+                               model_path="gpt-3.5-turbo-0125", #"gpt-4-0125-preview",  # gpt-3.5-turbo-0125, # claude-3-haiku-20240307
                                gen_max_len=4096,
                                temp=1.0,
                                batch_size=1,)
+    model_log_file = os.path.join(config.output_dir, "model_responses.jsonl")
+    gpt_logger.init(model_log_file)
     #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/logs/elm/24-02-08_16:01/database.jsonl"
     #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/init_policies/chess/"
-    config.qd = FunSearchConfig()
-    #curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
+    total_steps = 500
+    init_steps = 25
+    config.qd = FunSearchConfig(total_steps=total_steps, init_steps=init_steps)
     num_eval_rollouts = 100
+    horizon = 300
     curriculum = [dict() for _ in range(num_eval_rollouts)]
     fitness_curriculum = FitnessCurriculum(num_eval_rollouts=num_eval_rollouts,
                                            curriculum=curriculum,)
@@ -49,7 +56,8 @@ def main(config):
                              action_exemplar=envs[rl_env_name]["action_exemplar"],
                              fitness_curriculum=fitness_curriculum,
                              api_description="",
-                             api_list=[],)
+                             api_list=[],
+                             horizon=horizon,)
 
     print("----------------- Config ---------------")
     print(OmegaConf.to_yaml(config))

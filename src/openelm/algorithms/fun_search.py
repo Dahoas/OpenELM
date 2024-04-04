@@ -2,7 +2,7 @@
 Implementation of FunSearch using https://github.com/google-deepmind/funsearch in ELM
 """
 import os
-from typing import Optional, List
+from typing import List, Union
 import dataclasses
 import time
 import torch
@@ -20,15 +20,21 @@ from torch.nn.functional import softmax
 
 ######## Datastructures ########
 
+
+
 @dataclasses.dataclass
 class Program(Genotype):
   """
   Class defining program samples held in Database
   + src: source code
+  + fitness: evaluated fitness of policy in environment
+  + trajectory_path: path to file containing policy interaction data
+  + island_id: island id, or list of island ids, that the program belongs to
   """
   src: str
-  fitness: Optional[float] = None
-  island_id: Optional[int] = None
+  fitness: float
+  trajectory_path: str
+  island_id: Union[int, List[int]]
 
   def __str__(self) -> str:
      return self.src
@@ -80,15 +86,14 @@ class Database:
     self.tot_programs = 0
 
   def log(self, 
-          program: Program, 
-          fitness: float,
-          island_ids: List[int],):
+          program: Program,):
     """Log program and fitness"""
     with open(self.log_file, "a") as f:
         obj = dict(
            src=program.src,
-           fitness=fitness,
-           islands=island_ids,           
+           fitness=program.fitness,
+           island_id=program.island_id,
+           trajectory_path=program.trajectory_path,           
         )
         json.dump(obj, f)
         f.write("\n")
@@ -96,16 +101,16 @@ class Database:
   def add(
       self,
       program: Program,
-      fitness: float,
-      island_ids: List[int],
   ) -> None:
     """Registers `program` in the database."""
     # In an asynchronous implementation we should consider the possibility of
     # registering a program on an island that had been reset after the prompt
     # was generated. Leaving that out here for simplicity.
+    fitness = program.fitness
+    island_ids = program.island_id
 
     # First log the program
-    self.log(program, fitness, island_ids)
+    self.log(program)
     # Then add the program to each island in the island_ids list
     for island_id in island_ids:
         island_program = deepcopy(program)
@@ -261,11 +266,12 @@ class FunSearch:
                 print(f"Found {len(samples)} samples.")
                 samples = [json.loads(sample) for sample in samples]
                 for sample in samples:
-                    src = sample["src"]
-                    program = Program(src)
-                    fitness = sample["fitness"]
-                    islands = sample["islands"]
-                    self.database.add(program, fitness, island_ids=islands)
+                    program = Program(src=src, 
+                                      fitness=sample["fitness"], 
+                                      trajectory_path=sample["trajectory_path"], 
+                                      island_id=sample["island_id"],)
+                    program.trajectories = sample.get("trajectories")
+                    self.database.add(program)
                     # Update stats
                     res = dict(fitness=fitness,
                                eval_runtimes=[],
@@ -277,17 +283,18 @@ class FunSearch:
                 for seed_file in seed_files:
                     with open(seed_file, "r") as f:
                         src = "\n".join(f.readlines())
-                        program = Program(src)
-                        res = self.env.fitness(program)
-                        t = time.time()
-                        fitness = res["fitness"]
-                        fitness_runtime = time.time() - t
-                        res["fitness_runtime"] = fitness_runtime
-                        island_ids = list(range(len(self.database.islands)))
-                        self.database.add(program, fitness, island_ids=island_ids)
-                        # Update stats
-                        self.update_stats(self.start_step, program, res)
-                        self.start_step += 1
+                    t = time.time()
+                    res = self.env.fitness(src)
+                    res["fitness_runtime"] = time.time() - t
+                    island_ids = list(range(len(self.database.islands)))
+                    program = Program(src=src,
+                                      fitness=res["fitness"],
+                                      trajectory_path=res["trajectory_path"],
+                                      island_id=island_ids,)
+                    self.database.add(program)
+                    # Update stats
+                    self.update_stats(self.start_step, program, res)
+                    self.start_step += 1
         print(f"Loading finished! Starting on step {self.start_step}.")
 
     def random_selection(self):
@@ -317,14 +324,14 @@ class FunSearch:
         for n_steps in range(self.start_step, total_steps):
             if n_steps < init_steps:
                 # Initialise by generating initsteps random solutions
-                new_individuals: List[Program] = self.env.random()
+                new_individuals: List[str] = self.env.random()
                 # Each initial program spreads to all islandsd
                 island_ids_list = [list(range(len(self.database.islands))) for _ in new_individuals]
             else:
                 # Randomly select a batch of individuals
                 batch: List[List[Program]] = [self.random_selection() for _ in range(self.env.batch_size)]
                 # Mutate
-                new_individuals: List[Program] = self.env.mutate(batch)
+                new_individuals: List[str] = self.env.mutate(batch)
                 # Assign island ids equal to ids of prompt exemplars
                 island_ids_list = [[programs[0].island_id] for programs in batch]
 
@@ -332,14 +339,16 @@ class FunSearch:
                 # Evaluate fitness
                 t = time.time()
                 res = self.env.fitness(individual)
-                fitness_runtime = time.time() - t
+                res["fitness_runtime"] = time.time() - t
                 fitness = res["fitness"]
+                program = Program(src=individual,
+                                  fitness=fitness,
+                                  trajectory_path=res["trajectory_path"],
+                                  island_id=island_ids,)
                 if np.isinf(fitness):
                     continue
-                individual.fitness = fitness
-                self.database.add(individual, fitness, island_ids=island_ids)
+                self.database.add(program)
                 # Update stats
-                res["fitness_runtime"] = fitness_runtime
                 self.update_stats(n_steps, individual, res)
 
     def update_stats(self, n_steps, individual, res):
@@ -348,7 +357,7 @@ class FunSearch:
         self.stats["fitness_runtimes"].append(res["fitness_runtime"])
         if fitness > self.stats["best_fitness"]:
             self.stats["best_fitness"] = fitness
-            self.stats["best_program"] = individual.src
+            self.stats["best_program"] = individual
             self.stats["best_step"] = n_steps
         self.stats["step"] = n_steps
         if n_steps % self.config.log_stats_steps == 0:

@@ -73,7 +73,9 @@ class ELM:
         """
         self.config: ELMConfig = config
         #hydra_conf = HydraConfig.instance()
-        self.config.qd.output_dir = HydraConfig.get().runtime.output_dir
+        output_dir = HydraConfig.get().runtime.output_dir
+        self.config.qd.output_dir = output_dir
+        self.config.env.output_dir = output_dir
         env_name: str = self.config.env.env_name
         qd_name: str = self.config.qd.qd_name
         if isinstance(self.config.model, PromptModelConfig):
