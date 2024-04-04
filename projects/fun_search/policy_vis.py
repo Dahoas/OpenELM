@@ -89,6 +89,16 @@ def evaluate():
     print(json.dumps(res, indent=2))
 
 
+def compute_metrics():
+    # trajectory_path = "logs/trajectories/e90d2da8-4424-4946-8315-5fe792c91a66.json"
+    # from metrics import compute_metrics as cm
+    # with open(trajectory_path, "r") as f:
+    #     trajectories = json.load(f)
+    # metrics = cm(trajectories)
+    # print(json.dumps(metrics, indent=2))
+    pass
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", action="store_true")
