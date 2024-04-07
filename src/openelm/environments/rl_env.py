@@ -273,8 +273,10 @@ def get_rl_env(rl_env_name, render_mode):
         return ChessEnv(render_mode=render_mode)
     elif "crafter" in rl_env_name.lower():
         import gym as old_gym
-        import crafter 
-        return old_gym.make(rl_env_name)
+        from openelm.environments.wrappers.oaigym import GymWrapper
+        import crafter
+        raw_env = old_gym.make(rl_env_name)   
+        return raw_env
     return get_wrapped_env(rl_env_name, render_mode)
     
 

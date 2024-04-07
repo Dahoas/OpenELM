@@ -72,7 +72,7 @@ class GPTModel(MutationModel):
         + prompt_dicts: List of dicts with "prompt" field
         """
         is_complete_keyword = "<DONE>"
-        results = self.model(prompt_dicts, is_complete_keyword=is_complete_keyword)
+        results = self.model(prompt_dicts)
         responses = [res["response"] for res in results]
         return responses
 

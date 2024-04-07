@@ -94,7 +94,7 @@ if __name__ == "__main__":
     else:
         func = compute_metrics
         
-    rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
+    rl_env_name = "CrafterReward-v1"
     task_type = "policy"
     curriculum = [{"stockfish_depth": i} for i in range(1, 21)]
     fitness_curriculum = FitnessCurriculum(num_eval_rollouts=20, curriculum=curriculum)
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     rl_env = elm_env.env
 
     # Set program
-    policy_file = "init_policies/door_key/offline_analysis/policy_1.py"#human_policy.py"#report_design/policy_3_gpt4.py" #1_0.3.py"
+    policy_file = "/home/tsawada/Files/projects/o2401/OpenELM/projects/fun_search/seed_policies/gpt4/2403281630.py"#human_policy.py"#report_design/policy_3_gpt4.py" #1_0.3.py"
     with open(policy_file, "r") as f:
         src = f.readlines()
         src = "\n".join(src)
