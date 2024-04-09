@@ -4,7 +4,7 @@ This is branch of the OpenELM repo explores using LLMs as policy improvement ope
 
 ## Installation
 
-0. Create a python venv to install OpenELM and pytorch (assumes python version==3.9, CUDA version >= 12.1):
+0. Create a python venv to install OpenELM and pytorch (assumes python version==3.9, CUDA version >= 12.1). Make sure pip is fully upgraded.
 
 ```bash
 python -m venv elm

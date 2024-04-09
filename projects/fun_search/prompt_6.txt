@@ -1,0 +1,165 @@
+You are responsible for designing a decision policy to solve the following task: 
+The agent has to pick up a box which is placed in another room, behind a locked door. This environment can be solved without relying on language.
+
+
+You will write a python `Policy()`, which should be initializable without any parameters from the user, object which has two methods:
+- `def act(observation)` which takes in an observation and returns an action.
+- `update(observation, action, reward, next_observation)` which takes in the current observation, chosen action, reward, and next_observation and updates any persistent memory/state between observations. You should never assume the actions you take. `update` is a good place to test your understanding of the world and record the results.
+The observation space is defined formally as: 
+You can see a (7, 7) square of tiles in the direction you are facing and your inventory of item. Formally - observation['agent']['direction'] with 0: right, 1: down, 2: left, 3: up
+- observation['agent']['image'] array with shape (7, 7, 3) with each tile in the (7, 7) grid encoded as the triple (object: int, color: int, state: int) where
+    - object with 0: unseen, 1: empty, 2: wall, 3: floor, 4: door, 5: key, 6: ball, 7: box, 8: goal, 9: lava
+    - color with 0: red, 1: green, 2: blue, 3: purple, 4: yellow, 5: grey
+    - state with 0: door open, 1: door closed, 2: door locked
+- observation['inv']: list[int] contains any object being held and is empty otherwise 
+Note, the agent is always located at observation['image'][3][6] with observation['image'][2] to the left and observation['image'][4] to the right and observation['image'][3][5] forward.
+
+
+The action space is defined formally as:
+action: int such that
+- 0: turn left
+- 1: turn right
+- 2: move forward, Precondition: Forward tile must be empty
+- 3: pickup item, Precondition: must be standing in tile adjacent to object and facing it (item must be on observation['image'][3][5]). Cannot be holding another object
+- 4: drop item, Precondition: Must be holding item. Tile you are facing must be empty
+- 5: toggle key to open door, Precondition: Must have key and be facing the door (door is on observation['image'][3][5])
+
+
+The rewards are defined formally as:
+A reward of ‘1 - 0.9 * (step_count / 300)’ is given for success  for picking up the box
++0.1 for picking up the key for the first time. 
++0.2 for opening the door, and +0.1 for going through the door, 
++0.1 for putting down the key after opening the door.
+
+
+
+Here is an example policy:
+
+import numpy as np
+
+class Policy:
+    def __init__(self):
+        self.has_key = False
+        self.opened_door = False
+        self.report = {'steps': 0, 'actions': [], 'rewards': 0, 'success': False, 'change_direction_due_to_stuck': 0, 'key_encounters': 0, 'door_encounters': 0}
+        self.last_observation = None
+        self.stuck_counter = 0  # Counter to detect if stuck in a loop
+    
+    def act(self, observation):
+        direction = observation['direction']
+        image = observation['image']
+        forward_tile = image[3, 5, :]
+        
+        if forward_tile[0] == 5 and not self.has_key:
+            self.report['key_encounters'] += 1
+            return 3
+        
+        if self.has_key and forward_tile[0] == 4 and forward_tile[2] == 2:
+            return 5
+        
+        if forward_tile[0] == 4 and forward_tile[2] == 0:
+            return 2
+        
+        if forward_tile[0] == 7:
+            return 3
+        
+        if forward_tile[0] == 1 or forward_tile[0] == 3:
+            return 2
+        
+        # Detect if stuck and try to move differently
+        if self.last_observation is not None and np.array_equal(observation['image'], self.last_observation['image']):
+            self.stuck_counter += 1
+            if self.stuck_counter > 3:  # Assume stuck after 3 repeated observations
+                self.stuck_counter = 0
+                self.report['change_direction_due_to_stuck'] += 1
+                return np.random.choice([0, 1])  # Randomly choose to turn left or right
+        
+        self.stuck_counter = 0  # Reset counter if not stuck
+        return 1  # Default action to turn right for exploration
+    
+    def update(self, observation, action, reward, next_observation):
+        self.report['steps'] += 1
+        self.report['actions'].append(action)
+        self.report['rewards'] += reward
+        self.last_observation = observation
+        
+        if action == 3 and next_observation['image'][3, 5, 0] == 5:
+            self.has_key = True
+            self.report['rewards'] += 0.1
+        
+        if action == 5 and next_observation['image'][3, 5, 2] == 0:
+            self.opened_door = True
+            self.report['rewards'] += 0.2
+            self.report['door_encounters'] += 1
+        
+        if action == 3 and next_observation['image'][3, 5, 0] == 7:
+            self.report['success'] = True
+    
+    def prepare_report(self) -> str:
+        report_str = f"Total Steps: {self.report['steps']}\n"
+        report_str += f"Actions Taken: {self.report['actions']}\n"
+        report_str += f"Total Rewards: {self.report['rewards']}\n"
+        report_str += f"Success: {self.report['success']}\n"
+        report_str += f"Changes in Direction Due to Stuck: {self.report['change_direction_due_to_stuck']}\n"
+        report_str += f"Key Encounters: {self.report['key_encounters']}\n"
+        report_str += f"Door Encounters: {self.report['door_encounters']}"
+        return report_str
+
+
+The above policy has been rolled out in the environment and a dataset of trajectories has been collected.
+You must now analyze this dataset to better understand the policy's behavior and environment dynamics.
+This is done by using reporting functions which capture parts of the policy's behavior and the environmental dynamics.
+Note: len(trajectory["observations"]) == len(trajectory["actions"]) + 1 because the observation after 
+the last action is also saved.
+
+Report:
+
+{
+  "num_trajectories": {
+    "result": 20,
+    "description": "Number of evaluation rollouts."
+  },
+  "avg_trajectory_reward": {
+    "result": 0.4000000000000001,
+    "description": "Average reward across trajectories."
+  },
+  "report_inventory_management": {
+    "result": 0.95,
+    "description": "Percentage of times the inventory was full when the box was encountered."
+  },
+  "report_objective_prioritization": {
+    "result": 0.007141910229884793,
+    "description": "Percentage of agent's actions that move towards the box when it is visible."
+  },
+  "report_box_recognition_and_action": {
+    "result": 0.0,
+    "description": "Percentage of agent's actions that attempt to pick up the box when it is directly in front."
+  },
+  "action_counts": {
+    "result": {
+      "2": 86.3,
+      "1.0": 19.2,
+      "0.0": 21.7,
+      "3": 1.0,
+      "5": 1.0,
+      "4": 179.78947368421052
+    },
+    "description": "Average action counts"
+  }
+}
+
+Based on this report form ONE hypothesis about how the policy may be failing. 
+Then propose a new report function to test the hypothesis. 
+New report functions are of form "REPORT_NAME(observation, action, next_observation, memory: dict) -> dict.
+- observation: observation at current timestep
+- action: policy's action after seeing observation
+- next_observation: observation of state after taking action
+- memory: dict, a persistent object passed between calls to "REPORT_NAME" over a single trajectory. Can be used to store information
+for report computation over multiple timesteps. Each report should include a "description" variable describing the report. 
+After the final time-step of the trajectory memory["result"]: Union[float, dict[str, float]] should either contain the 
+final result of the report for the trajectory or a dictionary of final results for sub-statistics
+memory["description"]: str should contain a detailed description of the report. 
+"REPORT_NAME" should return the memory dict.
+The report across all trajectories is computed by taking the mean for each trajectory.
+Note: you can extract a lot of information from observation and next_observation.
+If you are reporting a ratio you should also report the numerator and denominator.
