@@ -1,0 +1,36 @@
+You are responsible for designing a decision policy to solve the following task: 
+The agent has to pick up a box which is placed in another room, behind a locked door. This environment can be solved without relying on language.
+
+The observation space is defined formally as: 
+You can see a (7, 7) square of tiles in the direction you are facing and your inventory of item. Formally - observation['agent']['direction'] with 0: right, 1: down, 2: left, 3: up
+- observation['agent']['image'] array with shape (7, 7, 3) with each tile in the (7, 7) grid encoded as the triple (object: int, color: int, state: int) where
+    - object with 0: unseen, 1: empty, 2: wall, 3: floor, 4: door, 5: key, 6: ball, 7: box, 8: goal, 9: lava
+    - color with 0: red, 1: green, 2: blue, 3: purple, 4: yellow, 5: grey
+    - state with 0: door open, 1: door closed, 2: door locked
+- observation['inv']: list[int] contains any object being held and is empty otherwise 
+Note, the agent is always located at observation['image'][3][6] with observation['image'][2] to the left and observation['image'][4] to the right and observation['image'][3][5] forward.
+
+
+The action space is defined formally as:
+action: int such that
+- 0: turn left
+- 1: turn right
+- 2: move forward, Precondition: Forward tile must be empty
+- 3: pickup item, Precondition: must be standing in tile adjacent to object and facing it (item must be on observation['image'][3][5]). Cannot be holding another object
+- 4: drop item, Precondition: Must be holding item. Tile you are facing must be empty
+- 5: toggle key to open door, Precondition: Must have key and be facing the door (door is on observation['image'][3][5])
+
+
+The rewards are defined formally as:
+A reward of ‘1 - 0.9 * (step_count / 300)’ is given for success  for picking up the box
++0.1 for picking up the key for the first time. 
++0.2 for opening the door, and +0.1 for going through the door, 
++0.1 for putting down the key after opening the door.
+
+In order to solve this task you must first understand the dynamics of the environment.
+You must write a `WorldModel()` which should be initializable without any parameters from the user, object which has one method,
+- `def predict(observation, action)` which takes in an observation, action pair and returns the next observation resulting from the action.
+
+For now focus on making a world model only for actions involving the pickup and drop operations.
+
+This gives good predictions for what they want to do?
