@@ -1,0 +1,42 @@
+You are responsible for critiquing a decision policy to solve the following task: 
+The agent has to pick up a box which is placed in another room, behind a locked door. This environment can be solved without relying on language.
+
+The observation space is defined formally as: 
+You can see a (7, 7) square of tiles in the direction you are facing and your inventory of item. Formally - observation['agent']['direction'] with 0: right, 1: down, 2: left, 3: up
+- observation['agent']['image'] array with shape (7, 7, 3) with each tile in the (7, 7) grid encoded as the triple (object: int, color: int, state: int) where
+    - object with 0: unseen, 1: empty, 2: wall, 3: floor, 4: door, 5: key, 6: ball, 7: box, 8: goal, 9: lava
+    - color with 0: red, 1: green, 2: blue, 3: purple, 4: yellow, 5: grey
+    - state with 0: door open, 1: door closed, 2: door locked
+- observation['inv']: list[int] contains any object being held and is empty otherwise 
+Note, the agent is always located at observation['image'][3][6] with observation['image'][2] to the left and observation['image'][4] to the right and observation['image'][3][5] forward.
+
+
+The action space is defined formally as:
+action: int such that
+- 0: turn left
+- 1: turn right
+- 2: move forward, Precondition: Forward tile must be empty
+- 3: pickup item, Precondition: must be standing in tile adjacent to object and facing it (item must be on observation['image'][3][5]). Cannot be holding another object
+- 4: drop item, Precondition: Must be holding item. Tile you are facing must be empty
+- 5: toggle key to open door, Precondition: Must have key and be facing the door (door is on observation['image'][3][5])
+
+
+The natural rewards are defined formally as:
+A reward of ‘1 - 0.9 * (step_count / 300)’ is given for success  for picking up the box
++0.1 for picking up the key for the first time. 
++0.2 for opening the door, and +0.1 for going through the door, 
++0.1 for putting down the key after opening the door.
+
+New report functions are of form "REPORT_NAME(observation, action, next_observation, memory: dict) -> dict.
+- observation: observation at current timestep
+- action: policy's action after seeing observation
+- next_observation: observation of state after taking action
+- memory: dict, a persistent object passed between calls to "REPORT_NAME" over a single trajectory. Can be used to store information
+for report computation over multiple timesteps. Each report should include a "description" variable describing the report. 
+After the final time-step of the trajectory memory["result"]: Union[float, dict[str, float]] should either contain the 
+final result of the report for the trajectory or a dictionary of final results for sub-statistics
+memory["description"]: str should contain a detailed description of the report. 
+"REPORT_NAME" should return the memory dict.
+The report across all trajectories is computed by taking the mean for each trajectory.
+Note: you can extract a lot of information from observation and next_observation.
+If you are reporting a ratio you should also report the numerator and denominator.
