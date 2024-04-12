@@ -49,6 +49,14 @@ class DiffModelConfig(ModelConfig):
     model_path: str = "CarperAI/diff-codegen-350m-v2"
 
 
+@dataclass
+class RLEnvModelConfig(ModelConfig):
+    designer_model_path: str = MISSING
+    analyzer_model_path: str = MISSING
+    designer_temp: float = MISSING
+    analyzer_temp: float = MISSING
+
+
 ######## Algorithm Configs ########
 
 @dataclass
@@ -85,6 +93,7 @@ class FunSearchConfig(QDConfig):
     init_steps: int = 10
     total_steps: int = 500
     log_stats_steps: int = 1
+    analysis_steps: int = 20
     database_config = dict(functions_per_prompt=1,
                            num_islands=5,
                            reset_period=50,

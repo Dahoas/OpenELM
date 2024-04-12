@@ -15,11 +15,10 @@ from omegaconf import OmegaConf
 
 from openelm import ELM
 
-from openelm.configs import ModelConfig, FunSearchConfig, RLEnvConfig, FitnessCurriculum
+from openelm.configs import RLEnvModelConfig, FunSearchConfig, RLEnvConfig, FitnessCurriculum
 from openelm.environments.rl_env_util.rl_env_descriptions import envs
 
 import os
-from gptquery.logger import Logger as gpt_logger
 
 
 @hydra.main(
@@ -28,19 +27,21 @@ from gptquery.logger import Logger as gpt_logger
 def main(config):
     rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
     config.output_dir = HydraConfig.get().runtime.output_dir
-    config.model = ModelConfig(model_type="gptquery",
-                               model_path="gpt-3.5-turbo-0125", #"gpt-4-0125-preview",  # gpt-3.5-turbo-0125, # claude-3-haiku-20240307
-                               gen_max_len=4096,
-                               temp=1.0,
-                               batch_size=1,)
-    model_log_file = os.path.join(config.output_dir, "model_responses.jsonl")
-    gpt_logger.init(model_log_file)
-    #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/logs/elm/24-02-08_16:01/database.jsonl"
-    #seeds = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60-0/alex/repos/OpenELM/init_policies/chess/"
+    config.model = RLEnvModelConfig(model_type="gptquery",
+                                    designer_model_path="gpt-3.5-turbo-0125", #"gpt-4-0125-preview",  # gpt-3.5-turbo-0125, # claude-3-haiku-20240307
+                                    analyzer_model_path="gpt-4-turbo",
+                                    designer_temp=1.1,
+                                    analyzer_temp=0.3,
+                                    gen_max_len=4096,
+                                    batch_size=1,
+                                    model_path="",)
     total_steps = 500
     init_steps = 25
-    config.qd = FunSearchConfig(total_steps=total_steps, init_steps=init_steps)
-    num_eval_rollouts = 100
+    analysis_steps = 25
+    config.qd = FunSearchConfig(total_steps=total_steps, 
+                                init_steps=init_steps,
+                                analysis_steps=analysis_steps,)
+    num_eval_rollouts = 10
     horizon = 300
     curriculum = [dict() for _ in range(num_eval_rollouts)]
     fitness_curriculum = FitnessCurriculum(num_eval_rollouts=num_eval_rollouts,

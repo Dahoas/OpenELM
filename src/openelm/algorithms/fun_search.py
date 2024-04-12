@@ -2,7 +2,7 @@
 Implementation of FunSearch using https://github.com/google-deepmind/funsearch in ELM
 """
 import os
-from typing import List, Union
+from typing import List, Union, Optional
 import dataclasses
 import time
 import torch
@@ -14,13 +14,12 @@ import numpy as np
 
 from openelm.configs import QDConfig
 from openelm.environments import BaseEnvironment, Genotype
+from openelm.mutation_models.rl_mutation_model import PromptMode, MutationMode
 
 from torch.nn.functional import softmax
 
 
 ######## Datastructures ########
-
-
 
 @dataclasses.dataclass
 class Program(Genotype):
@@ -35,6 +34,7 @@ class Program(Genotype):
   fitness: float
   trajectory_path: str
   island_id: Union[int, List[int]]
+  critique: Optional[str] = None
 
   def __str__(self) -> str:
      return self.src
@@ -300,6 +300,20 @@ class FunSearch:
     def random_selection(self):
        return self.database.sample_programs()
 
+    def choose_prompt_mode(self, step):
+        if step % self.config.analysis_steps == 0:
+            return PromptMode.ANALYZER, MutationMode.FEEDBACK
+        else:
+            p = {
+                MutationMode.SAMPLING: 1/4,
+                MutationMode.MUTATION: 3/4,
+                MutationMode.FEEDBACK: 0,
+            }
+            p = np.array(list(p.values()))
+            p = p / sum(p)
+            mutation_mode = np.random.choice(list(MutationMode), p=p)
+            return PromptMode.DESIGNER, mutation_mode
+
     def search(self, 
                init_steps: int, 
                total_steps: int, 
@@ -330,8 +344,10 @@ class FunSearch:
             else:
                 # Randomly select a batch of individuals
                 batch: List[List[Program]] = [self.random_selection() for _ in range(self.env.batch_size)]
+                # Next select a mutation mode
+                prompt_mode, mutation_mode = self.choose_mode(n_steps)
                 # Mutate
-                new_individuals: List[str] = self.env.mutate(batch)
+                new_individuals: List[str] = self.env.mutate(batch, prompt_mode, mutation_mode)
                 # Assign island ids equal to ids of prompt exemplars
                 island_ids_list = [[programs[0].island_id] for programs in batch]
 

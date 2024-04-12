@@ -19,9 +19,6 @@ from openelm.configs import ModelConfig
 from openelm.utils.diff_eval import apply_diff, split_diff
 
 
-openai_api = os.environ.get("OPENAI_API") 
-print(f"\nOPENAI_API: {openai_api[:5]}...\n")
-
 def get_model(config: ModelConfig):
     if config.model_type == "hf":
         return HuggingFaceLLM(config=config)
@@ -51,30 +48,6 @@ class MutationModel(ABC):
     @abstractmethod
     def generate_programs(self, *args, **kwargs) -> list[str]:
         raise NotImplementedError
-    
-
-class GPTModel(MutationModel):
-    def __init__(self, config: ModelConfig):
-        self.config = config
-        from gptquery.gpt import GPT
-        self.model = GPT(model_name=config.model_path,
-                         temperature=config.temp,
-                         max_num_tokens=config.gen_max_len,
-                         mb_size=config.batch_size,
-                         task_prompt_text="{prompt}",
-                         log=True,
-                         verbose=True,
-                         oai_key=openai_api)
-        
-    def generate_programs(self, prompt_dicts: List[dict[str, str]]) -> list[str]:
-        """
-        Generates programs using prompts in prompt_dicts.
-        + prompt_dicts: List of dicts with "prompt" field
-        """
-        is_complete_keyword = "<DONE>"
-        results = self.model(prompt_dicts, is_complete_keyword=is_complete_keyword)
-        responses = [res["response"] for res in results]
-        return responses
 
 
 class PromptModel(MutationModel):

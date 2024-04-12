@@ -3,7 +3,8 @@ from typing import Any, Optional, Type
 from hydra.core.hydra_config import HydraConfig
 
 from openelm.configs import DiffModelConfig, ELMConfig, PromptModelConfig
-from openelm.mutation_model import DiffModel, MutationModel, PromptModel, GPTModel
+from openelm.mutation_model import DiffModel, MutationModel, PromptModel
+from openelm.mutation_models.rl_mutation_model import RLEnvModel
 from openelm.environments.base import BaseEnvironment
 
 
@@ -76,6 +77,7 @@ class ELM:
         output_dir = HydraConfig.get().runtime.output_dir
         self.config.qd.output_dir = output_dir
         self.config.env.output_dir = output_dir
+        self.config.model.logging_path = output_dir
         env_name: str = self.config.env.env_name
         qd_name: str = self.config.qd.qd_name
         if isinstance(self.config.model, PromptModelConfig):
@@ -84,7 +86,7 @@ class ELM:
             print("Diff model")
             self.mutation_model = DiffModel(self.config.model)
         elif self.config.model.model_type == "gptquery":
-            self.mutation_model = GPTModel(self.config.model)
+            self.mutation_model = RLEnvModel(self.config.model)
         if env is None:
             self.environment = load_env(env_name)(
                 config=self.config.env,
