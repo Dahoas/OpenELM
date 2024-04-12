@@ -10,6 +10,9 @@ import argparse
 from openelm.environments.rl_env import ELMRLEnv, Program
 from openelm.configs import RLEnvConfig, FitnessCurriculum
 
+from openelm.environments.rl_env_util.world_model import get_world_model_feedback, get_world_model
+from utils import print_dict
+
 
 # Execution loop
 def execute():
@@ -69,27 +72,26 @@ def evaluate():
         json.dump(res, f, indent=2)
 
         
-def compute_metrics():
-    trajectory_path = "logs/trajectories/e90d2da8-4424-4946-8315-5fe792c91a66.json"
-    from metrics import compute_metrics as cm
-    with open(trajectory_path, "r") as f:
-        trajectories = json.load(f)
-    metrics = cm(trajectories)
-    print(json.dumps(metrics, indent=2))
+
     
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", action="store_true")
-    parser.add_argument("--mode", choices=["execute", "evaluate", "compute_metrics"])
+    parser.add_argument("--mode", choices=["execute", 
+                                           "evaluate", 
+                                           "compute_metrics",
+                                           "compute_world_model",])
     args = parser.parse_args()
 
     if args.mode == "execute":
         func = execute
     elif args.mode == "evaluate":
         func = evaluate
-    else:
+    elif args.mode == "compute_metrics":
         func = compute_metrics
+    elif args.mode == "compute_world_model":
+        func = compute_world_model_feedback
         
     rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
     task_type = "policy"
@@ -113,7 +115,11 @@ if __name__ == "__main__":
     rl_env = elm_env.env
 
     # Set program
-    policy_file = "init_policies/door_key/offline_analysis/policy_1.py"#human_policy.py"#report_design/policy_3_gpt4.py" #1_0.3.py"
+    policy_file = "init_policies/door_key/offline_analysis/policy_2.py"#human_policy.py"#report_design/policy_3_gpt4.py" #1_0.3.py"
+    trajectory_path = "logs/trajectories/policy_2.json"
+    world_model_file = "init_policies/door_key/offline_analysis/world_model_1.py"
+    action_model = [3, 4]
+    world_model = get_world_model(world_model_file)
     with open(policy_file, "r") as f:
         src = f.readlines()
         src = "\n".join(src)

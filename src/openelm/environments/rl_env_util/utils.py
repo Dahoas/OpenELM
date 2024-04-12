@@ -1,6 +1,9 @@
 from typing import Union
 import numpy as np
+from collections import defaultdict
 
+
+######## reports.py util ########
 
 def flatten_dict(d: dict):
     """
@@ -47,3 +50,21 @@ def recursive_convert_lists_to_nparry(d: Union[dict, list]):
 def print_dict(d):
     for k, v in d.items():
         print(f"{k}: {v}")
+
+
+def recursive_avg(d):
+    if type(d[0]) in [bool, int, float]:
+        return np.mean(d)
+    elif type(d[0]) is dict:
+        d_new = defaultdict(list)
+        # Then group by key
+        for d_in in d:
+            # First flatten dict
+            d_in = flatten_dict(d_in)
+            for k, v in d_in.items():
+                d_new[k].append(v)
+        for k, v in d_new.items():
+            d_new[k] = np.mean(v)
+        return d_new
+    else:
+        raise ValueError(f"Unsupported type!!!")

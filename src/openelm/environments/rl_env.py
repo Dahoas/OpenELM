@@ -51,11 +51,7 @@ You will write a python `Policy()`, which should be initializable without any pa
 - `def act(observation)` which takes in an observation and returns an action.
 - `update(observation, action, reward, next_observation)` which takes in the current observation, \
 chosen action, reward, and next_observation and updates any persistent memory/state between observations. \
-You should never assume the actions you take. `update` is a good place to test your understanding of the world and record the results.
-- `report: dict` which collects observations and statistics from over the agent's execution to understand its performance in the environement.
-This is also a good way to test your own understanding of the environment's dynamics. This should be serializable. \
-Each key should have the form 'name'/'aggregation' where 'name' is the metric name and 'aggregation' determines how the 
-statistic is aggregated over multiple runs. 'aggregation' should be one of ['mean', 'max', 'min']
+You should never assume the actions you take. `update` is a good place to test your understanding of the world and record the results.\n\
 Note: You should not assume any exploration outside of what is learned during the agent's single rollout in \
 the environment. This means you should not rely on Q-learning, etc.\n\n\
 The observation space is defined formally as: 
@@ -338,7 +334,7 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         warnings.warn("WARNING: rng state not used in this environment")
         pass
 
-    def _construct_prompt(self, exemplars: Optional[list[Program]] = None):
+    def _construct_prompt(self, exemplars: Optional[List[Program]] = None):
         # Sample prompting mode
         p = np.ones(len(PromptMode)) / len(PromptMode)
         p = {
@@ -371,13 +367,13 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         except IndexError:
             return ""
 
-    def random(self) -> list[Program]:
+    def random(self) -> List[Program]:
         prompts = [{"prompt": self._construct_prompt()} for _ in range(self.config.batch_size)]
         responses = [self.mutation_model.generate_programs([prompt])[0] for prompt in prompts]
         new_programs = [self._extract_src_code(response) for response in responses]
         return new_programs
     
-    def mutate(self, sol_list: List[List[Program]]) -> list[Program]:
+    def mutate(self, sol_list: List[List[Program]]) -> List[Program]:
         prompts = [{"prompt": self._construct_prompt(sols)} for sols in sol_list]
         responses = [self.mutation_model.generate_programs([prompt])[0] for prompt in prompts]
         new_programs = [self._extract_src_code(response) for response in responses]

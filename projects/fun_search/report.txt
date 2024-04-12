@@ -1,1 +1,0 @@
-Success Rate: 0.00%, Avg. Steps: 290.00, Key Pickup Rate: 100.00%, Door Open Rate: 100.00%

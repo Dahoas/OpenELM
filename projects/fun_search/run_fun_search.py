@@ -16,7 +16,7 @@ from omegaconf import OmegaConf
 from openelm import ELM
 
 from openelm.configs import ModelConfig, FunSearchConfig, RLEnvConfig, FitnessCurriculum
-from rl_env_descriptions import envs
+from openelm.environments.rl_env_util.rl_env_descriptions import envs
 
 import os
 from gptquery.logger import Logger as gpt_logger

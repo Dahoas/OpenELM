@@ -1,4 +1,4 @@
-You are responsible for critiquing a decision policy to solve the following task: 
+You are responsible for helping an agent generate a decision policy to solve the following task: 
 The agent has to pick up a box which is placed in another room, behind a locked door. This environment can be solved without relying on language.
 
 The observation space is defined formally as: 
@@ -27,16 +27,10 @@ A reward of ‘1 - 0.9 * (step_count / 300)’ is given for success  for picking
 +0.2 for opening the door, and +0.1 for going through the door, 
 +0.1 for putting down the key after opening the door.
 
-New report functions are of form "REPORT_NAME(observation, action, next_observation, memory: dict) -> dict.
-- observation: observation at current timestep
-- action: policy's action after seeing observation
-- next_observation: observation of state after taking action
-- memory: dict, a persistent object passed between calls to "REPORT_NAME" over a single trajectory. Can be used to store information
-for report computation over multiple timesteps. Each report should include a "description" variable describing the report. 
-After the final time-step of the trajectory memory["result"]: Union[float, dict[str, float]] should either contain the 
-final result of the report for the trajectory or a dictionary of final results for sub-statistics
-memory["description"]: str should contain a detailed description of the report. 
-"REPORT_NAME" should return the memory dict.
-The report across all trajectories is computed by taking the mean for each trajectory.
-Note: you can extract a lot of information from observation and next_observation.
-If you are reporting a ratio you should also report the numerator and denominator.
+You must implement an additional reward via the virtual reward class "REWARD_NAME()", which takes no initialization parameters, with two properties:
+- a method "reward(observation, action, next_observation, memory: dict) -> float" which 
+takes in the transition tuple (observation, action, next_observation), as a well as a 'memory' dict you can use to persist state
+between steps in a trajectory, and returns a scalar.
+- a variable "condition" which describes in detail when the reward is given
+The reward should focus on one specific desired or undesired behavior.
+The implementation should be complete, not making any simplifying assumptions.

@@ -80,6 +80,26 @@ Maybe there should be an initial environmental grounding phase which allows gpt-
 - understanding dynamics are necessary for good planning
 - discovering unstated preconditions
 
+I guess in our case invalid actions are things which essentially don't change the world.
+- Want gpt-4 to catch these and mark them as useless
+- Otherwise gpt-4 should be able to correctly predict how actions change the world
+
+Maybe each function should have a docstring descrbing the strategy of the function
+- the policy itself should also have this
+
+Remarably, the first time I asked gpt-4 to generate a virtual reward, it generated a reward for putting down the key in a non-obstructing way
+- this might be the updated gpt-4
+
+Procedure for gpt-4:
+- It can use a combination two techniques to learn about the policy's behavior
+    - the world model
+    - reporting functions
+- Using this information it has to make a single concrete hypothesis about how the model is failing. With this hypothesis the model will
+    - Generate a critique feedback in the form a description of what is wrong and advice on how to fix it.
+        - This will be appened to generation when the specific policy is used as an exemplar
+        - This will also be used in describing strategies for the environment in the description
+
+
 ## Chess Notes
 
 Stockfish takes the most time by far

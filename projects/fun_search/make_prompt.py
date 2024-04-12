@@ -7,7 +7,7 @@ import json
 import cProfile
 import argparse
 
-from rl_env_descriptions import envs
+from openelm.environments.rl_env_util.rl_env_descriptions import envs
 from openelm.environments.rl_env_util.prompts import prompts
 
 
