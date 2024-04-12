@@ -145,119 +145,6 @@ class RLPolicy:
         # Now process trajectories
         final_report += self.prepare_trajectories(trajectories)
         return final_report
-
-
-class RLValuePolicy(RLPolicy):
-    """
-    Implements methods of contructing policies from value function
-    """
-    def __init__(self,
-                 rl_env,
-                 value_fn,
-                 method: str="mcts", 
-                 depth: int=10, 
-                 time_limit: float=30,
-                 rollout_limit: int=10000,
-                 num_procs=1,):
-        self.rl_env = rl_env
-        self.value_fn = value_fn.value
-        self.method = method
-        self.depth = depth
-        self.time_limit = time_limit
-        self.rollout_limit = rollout_limit
-        self.num_procs = num_procs
-        if self.method == "mcts":
-            self.mcts_root: MCTSNode = MCTSNode(value_fn=self.value_fn,
-                                                parent_action=None,
-                                                parent=None,)
-
-    def _value_only_policy(self, observation):
-        action_dict = {action: 0 for action in self.rl_env.get_actions()}
-        for action in action_dict:
-            rl_env_copy = self.make_env_copy()  # Make (fake) copy of current state
-            observation, reward, terminated, _, _ = rl_env_copy.step(action)
-            value = self.value_fn(observation)
-            action_dict[action] = reward if reward != 0 else value
-            self.restore_env(rl_env_copy)  # Need to restore original state as this is not a true copy
-        action_ind = np.argmax(list(action_dict.values()))
-        return list(action_dict.keys())[action_ind]
-
-    def _mcts_policy(self, observation):
-        def do_rollouts(nodes, rl_env, depth, results, batch_size, rank):
-            for i, node in enumerate(nodes):
-                rl_env_copy = self.make_env_copy(mode="single")
-                ret = node.rollout(rl_env_copy, depth=depth)
-                results[rank * batch_size + i] = ret
-                self.restore_env(rl_env_copy)
-
-        t = time()
-        if self.num_procs == 1:
-            # Rollout MCTS tree
-            for i in range(self.rollout_limit):
-                elapsed = time() - t
-                if elapsed > self.time_limit: break
-                rl_env_copy = self.make_env_copy(mode="single")
-                node = self.mcts_root.select(rl_env_copy)            
-                ret = node.rollout(rl_env_copy, depth=self.depth)
-                node.backprop(ret)
-                self.restore_env(rl_env_copy)
-        else:
-            # TODO(dahoas): This impl is incorrect. Faster but degrades perf
-            batch_size = self.rollout_limit // self.num_procs
-            results = mp.Array("d", [np.nan for _ in range(self.rollout_limit)])
-            nodes, procs = [], []
-            for i in range(self.rollout_limit):
-                rl_env_copy = self.make_env_copy(mode="single")
-                node = self.mcts_root.select(rl_env_copy)
-                nodes.append(node)
-                self.restore_env(rl_env_copy)
-            for i in range(self.num_procs):
-                proc_nodes = nodes[i*batch_size:(i+1)*batch_size]
-                p = mp.Process(target=do_rollouts, args=(proc_nodes, self.rl_env, self.depth, results, batch_size, i))
-                procs.append(p)
-                p.start()
-            for i, p in enumerate(procs):
-                p.join()
-                rets = results[i*batch_size:(i+1)*batch_size]
-                ret_nodes = nodes[i*batch_size:(i+1)*batch_size]
-                for ret, node in zip(rets, ret_nodes): 
-                    if ret is not np.nan:
-                        node.backprop(ret)
-                    
-        # Update mcts_root root and select best action
-        weights = [np.mean(child.results) for child in self.mcts_root.children]
-        #print("Policy time: ", elapsed)
-        self.mcts_root = self.mcts_root.children[np.argmax(weights)]
-        return self.mcts_root.parent_action
-
-    def act(self, observation):
-        if self.method == "value_only":
-            return self._value_only_policy(observation)
-        elif self.method == "mcts":
-            return self._mcts_policy(observation)
-        else:
-            raise ValueError(f"Method is unknown: {self.method}!!!")
-
-    def update(self, old_observation, action, reward, observation):
-        """
-        If the policy uses MCTS need to update the tree with opponent's move.
-        """
-        if self.method == "mcts":
-            # NOTE: This assumes the rl_env has get_last_move method
-            opponent_move = self.rl_env.get_last_move()
-            done = self.rl_env.is_done()
-            # Check if move present in tree
-            new_root = None
-            for child in self.mcts_root.children:
-                if child.parent_action == opponent_move:
-                    new_root = child
-            if not new_root:
-                new_root = MCTSNode(value_fn=self.value_fn,
-                                    parent_action=opponent_move,
-                                    parent=self.mcts_root,
-                                    terminal=done,
-                                    exp_coef=self.mcts_root.exp_coef,)
-            self.mcts_root = new_root
         
 
 def get_rl_env(rl_env_name, render_mode):
@@ -389,12 +276,6 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
             exec(source, result)
             policy_fn = result["policy"]
             return RLPolicy(self.env, policy_fn)
-        elif self.task_type == TaskType.VALUE:
-            source = f"{program}\n\nvalue = Value()"
-            result = dict()
-            exec(source, result)
-            value_fn = result["value"]
-            return RLValuePolicy(self.env, value_fn)
 
     def fitness(self, src: str) -> dict:
         """
