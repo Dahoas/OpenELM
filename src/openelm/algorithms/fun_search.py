@@ -138,7 +138,7 @@ class Database:
           self.config.cluster_sampling_temperature_period)
       founder_island_id = np.random.choice(keep_islands_ids)
       island = self.islands[founder_island_id]
-      founder, founder_fitness = island.best_sample.program, island.best_sample.fitness
+      founder, founder_fitness = island.best_sample, island.best_sample.fitness
       island_program = deepcopy(founder)
       island_program.island_id = island_id
       self.islands[island_id].add(island_program)

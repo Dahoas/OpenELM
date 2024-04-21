@@ -94,11 +94,13 @@ class FunSearchConfig(QDConfig):
     total_steps: int = 500
     log_stats_steps: int = 1
     analysis_steps: int = 20
-    database_config = dict(functions_per_prompt=1,
-                           num_islands=5,
-                           reset_period=50,
-                           cluster_sampling_temperature_init=0.1,
-                           cluster_sampling_temperature_period=30_000,)
+    database_config: Any = field(
+        default_factory=lambda: dict(functions_per_prompt=1,
+                                     num_islands=5,
+                                     reset_period=50,
+                                     cluster_sampling_temperature_init=0.1,
+                                     cluster_sampling_temperature_period=30_000,)
+    )
     seed_policies_dir: Optional[str] = None
 
 ######## Environment Configs ########

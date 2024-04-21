@@ -39,9 +39,15 @@ def main(config):
     init_steps = 1
     analysis_steps = 5
     seed_policies_dir = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60/alex/repos/OpenELM/projects/fun_search/init_policies/door_key/jsonls/init.jsonl"
+    database_config = dict(functions_per_prompt=1,
+                           num_islands=5,
+                           reset_period=50,
+                           cluster_sampling_temperature_init=0.1,
+                           cluster_sampling_temperature_period=30_000,)
     config.qd = FunSearchConfig(total_steps=total_steps, 
                                 init_steps=init_steps,
                                 analysis_steps=analysis_steps,
+                                database_config=database_config,
                                 seed_policies_dir=seed_policies_dir,)
     num_eval_rollouts = 10
     horizon = 300
