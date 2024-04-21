@@ -9,6 +9,7 @@ This is branch of the OpenELM repo explores using LLMs as policy improvement ope
 ```bash
 python -m venv elm
 source elm/bin/activate
+pip install --upgrade pip
 pip install torch torchvision torchaudio
 ```
 
