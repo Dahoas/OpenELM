@@ -120,27 +120,28 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         path = pathlib.Path(self.scratch_dir)
         path.mkdir(exist_ok=True, parents=True)
 
-    def random(self) -> List[str]:
+    def random(self) -> List[dict]:
         batch = [self.env_dict for _ in range(self.config.batch_size)]
-        policies = self.mutation_model(batch, 
+        outputs = self.mutation_model(batch, 
                                        prompt_mode=PromptMode.DESIGNER, 
                                        mutation_mode=MutationMode.UNCONDITIONAL)
-        return policies
+        return outputs
     
     def mutate(self, 
-               program_list: List[List[Program]],  # In practice this will always be one program per outer entry
+               program_list: List[List[Program]],  # In practice this will always be one program per inner list
                prompt_mode: PromptMode,
-               mutation_mode: MutationMode) -> List[str]:
+               mutation_mode: MutationMode) -> List[dict]:
         # Flatten
         program_list = [l[0] for l in program_list]
         batch = [{**self.env_dict, **{
             "policy": program.src,
             "critique": program.critique,
+            "trajectory_path": program.trajectory_path,
         }} for program in program_list]
-        policies = self.mutation_model(batch, 
+        outputs = self.mutation_model(batch, 
                                        prompt_mode=prompt_mode, 
                                        mutation_mode=mutation_mode)
-        return policies
+        return outputs
     
     def _extract_executable_policy(self, program: str):
         if self.task_type == TaskType.POLICY:

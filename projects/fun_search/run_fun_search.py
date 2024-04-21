@@ -35,12 +35,14 @@ def main(config):
                                     gen_max_len=4096,
                                     batch_size=1,
                                     model_path="",)
-    total_steps = 500
-    init_steps = 25
-    analysis_steps = 25
+    total_steps = 100
+    init_steps = 1
+    analysis_steps = 5
+    seed_policies_dir = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60/alex/repos/OpenELM/projects/fun_search/init_policies/door_key/jsonls/init.jsonl"
     config.qd = FunSearchConfig(total_steps=total_steps, 
                                 init_steps=init_steps,
-                                analysis_steps=analysis_steps,)
+                                analysis_steps=analysis_steps,
+                                seed_policies_dir=seed_policies_dir,)
     num_eval_rollouts = 10
     horizon = 300
     curriculum = [dict() for _ in range(num_eval_rollouts)]

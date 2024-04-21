@@ -4,11 +4,13 @@ Implementation of FunSearch using https://github.com/google-deepmind/funsearch i
 import os
 from typing import List, Union, Optional
 import dataclasses
+from dataclasses import asdict
 import time
 import torch
 import pathlib
 import json
-from copy import deepcopy
+from copy import deepcopy, copy
+from random import shuffle
 
 import numpy as np
 
@@ -89,12 +91,7 @@ class Database:
           program: Program,):
     """Log program and fitness"""
     with open(self.log_file, "a") as f:
-        obj = dict(
-           src=program.src,
-           fitness=program.fitness,
-           island_id=program.island_id,
-           trajectory_path=program.trajectory_path,           
-        )
+        obj = asdict(program)
         json.dump(obj, f)
         f.write("\n")
 
@@ -107,7 +104,7 @@ class Database:
     # registering a program on an island that had been reset after the prompt
     # was generated. Leaving that out here for simplicity.
     fitness = program.fitness
-    island_ids = program.island_id
+    island_ids = program.island_id if type(program.island_id) is list else [program.island_id]
 
     # First log the program
     self.log(program)
@@ -115,7 +112,7 @@ class Database:
     for island_id in island_ids:
         island_program = deepcopy(program)
         island_program.island_id = island_id
-        self.islands[island_id].add(island_program, fitness)
+        self.islands[island_id].add(island_program)
 
     self.tot_programs += 1
     # Check whether it is time to reset an island.
@@ -144,22 +141,42 @@ class Database:
       founder, founder_fitness = island.best_sample.program, island.best_sample.fitness
       island_program = deepcopy(founder)
       island_program.island_id = island_id
-      self.islands[island_id].add(island_program, founder_fitness)
+      self.islands[island_id].add(island_program)
 
-  def sample_programs(self):
+  def sample_programs(self, requires_critique=False):
      """Sample an island and then island programs."""
-     island = np.random.choice(self.islands)
-     programs = island.sample_programs()
+     islands = copy(self.islands)
+     shuffle(islands)
+     for island in islands:
+        programs = island.sample_programs(requires_critique=requires_critique)
+        if None not in programs: break
      return programs
+
+  def filtered_best_sample(self, filters: List[Program], fitness_threshold=0.0):
+    # Randomly sort islands
+    islands = copy(self.islands)
+    shuffle(islands)
+    for island in islands:
+        samples = sorted(island.samples, key=lambda sample: sample.fitness, reverse=True)
+        for sample in samples:
+            # Only return program if 
+            # - it is not in the filter 
+            # - not yet critiqued
+            # - has fitness above threshold
+            if sample not in filters \
+            and sample.critique is None \
+            and sample.fitness >= fitness_threshold:
+                return sample
+    # No valid samples found
+    return None
+
+  def remove(self, program):
+    island = self.islands[program.island_id]
+    island.samples = [sample for sample in island.samples if sample != program]
 
 
 class Island:
   """A sub-population of the programs database."""
-
-  @dataclasses.dataclass
-  class Sample:
-     program: Program
-     fitness: float
 
   def __init__(
       self,
@@ -171,32 +188,39 @@ class Island:
     self.cluster_sampling_temperature_init = cluster_sampling_temperature_init
     self.cluster_sampling_temperature_period = cluster_sampling_temperature_period
     
-    self.samples: List[Island.Sample] = []
-    self.num_programs = 0
+    self.samples: List[Program] = []
     self.best_sample = None
 
   def add(
       self,
       program: Program,
-      fitness: float,
   ) -> None:
     """Stores a program on this island, in its appropriate cluster."""
     assert program.island_id is not None
-    sample = Island.Sample(program, fitness)
-    self.samples.append(sample)
-    self.num_programs += 1
+    self.samples.append(program)
     if self.best_sample is None or \
-    fitness > self.best_sample.fitness:
-       self.best_sample = sample
+    program.fitness > self.best_sample.fitness:
+       self.best_sample = program
 
-  def sample_programs(self) -> List[Program]:
+  @property
+  def num_programs(self):
+    return len(self.samples)
+
+  def sample_programs(self, requires_critique=False) -> List[Optional[Program]]:
     """Constructs a prompt containing functions from this island."""
+    if requires_critique:
+        sample_programs = [program for program in self.samples if program.critique is not None]
+    else:
+        sample_programs = self.samples
+
+    if len(sample_programs) == 0:
+        return [None for _ in range(self.functions_per_prompt)]
 
     # Convert fitnesses to probabilities using softmax with temperature schedule.
     period = self.cluster_sampling_temperature_period
     temperature = self.cluster_sampling_temperature_init * (
-        1 - (self.num_programs % period) / period)
-    logits = np.array([sample.fitness for sample in self.samples]) / temperature
+        1 - (len(sample_programs) % period) / period)
+    logits = np.array([sample.fitness for sample in sample_programs]) / temperature
     assert np.all(np.isfinite(logits))
     probabilities = softmax(torch.tensor(logits, dtype=torch.float32), dim=0).numpy()
 
@@ -204,8 +228,7 @@ class Island:
     # programs into the prompt.
     #functions_per_prompt = min(len(self._clusters), self._functions_per_prompt)
 
-    idx = np.random.choice(self.num_programs, size=self.functions_per_prompt, p=probabilities)
-    chosen_samples = [self.samples[i].program for i in idx]
+    chosen_samples = np.random.choice(sample_programs, size=self.functions_per_prompt, p=probabilities)
     return chosen_samples
 
 
@@ -257,44 +280,38 @@ class FunSearch:
         self.stats_log_file = os.path.join(config.output_dir, "stats.jsonl")
         # Load seed policies if available
         if self.config.seed_policies_dir is not None:
+            # Loading in jsonl
             path = pathlib.Path(self.config.seed_policies_dir)
             print(f"Loading {self.config.seed_policies_dir} as initial policies...")
-            if path.is_file():
-                assert ".jsonl" in path.name
-                with open(path, "r") as f:
-                    samples = f.readlines()
-                print(f"Found {len(samples)} samples.")
-                samples = [json.loads(sample) for sample in samples]
-                for sample in samples:
-                    program = Program(src=src, 
-                                      fitness=sample["fitness"], 
-                                      trajectory_path=sample["trajectory_path"], 
-                                      island_id=sample["island_id"],)
-                    program.trajectories = sample.get("trajectories")
-                    self.database.add(program)
-                    # Update stats
-                    res = dict(fitness=fitness,
-                               eval_runtimes=[],
-                               fitness_runtime=0,)
-                    self.update_stats(self.start_step, program, res)
-                    self.start_step += 1
-            else:
-                seed_files = path.glob("*")
-                for seed_file in seed_files:
-                    with open(seed_file, "r") as f:
-                        src = "\n".join(f.readlines())
-                    t = time.time()
-                    res = self.env.fitness(src)
-                    res["fitness_runtime"] = time.time() - t
-                    island_ids = list(range(len(self.database.islands)))
-                    program = Program(src=src,
-                                      fitness=res["fitness"],
-                                      trajectory_path=res["trajectory_path"],
-                                      island_id=island_ids,)
-                    self.database.add(program)
-                    # Update stats
-                    self.update_stats(self.start_step, program, res)
-                    self.start_step += 1
+            assert ".jsonl" in path.name
+            with open(path, "r") as f:
+                samples = f.readlines()
+            samples = [json.loads(sample) for sample in samples]
+            print(f"Found {len(samples)} samples.")
+            # Extracting programs
+            for sample in samples:
+                assert "src" in sample
+                if "fitness" not in sample or "trajectory_path" not in sample:
+                    res = self.env.fitness(sample["src"])
+                    sample["fitness"] = res["fitness"]
+                    sample["trajectory_path"] = res["trajectory_path"]
+                if "island_id" not in sample:
+                    sample["island_id"] = list(range(len(self.database.islands)))
+                program = Program(src=sample["src"],
+                                  fitness=sample["fitness"],
+                                  trajectory_path=sample["trajectory_path"],
+                                  island_id=sample["island_id"],)
+                # If program has a critique, first remove pre-existing instance without critique
+                if sample.get("critique") is not None:
+                    self.database.remove(program)
+                    program.critique = sample["critique"]
+                self.database.add(program)
+                # Update stats
+                res = dict(fitness=sample["fitness"],
+                           eval_runtimes=[],
+                           fitness_runtime=0,)
+                self.update_stats(self.start_step, program, res)
+                self.start_step += 1
         print(f"Loading finished! Starting on step {self.start_step}.")
 
     def random_selection(self):
@@ -302,17 +319,61 @@ class FunSearch:
 
     def choose_prompt_mode(self, step):
         if step % self.config.analysis_steps == 0:
-            return PromptMode.ANALYZER, MutationMode.FEEDBACK
+            return PromptMode.ANALYZER, MutationMode.CRITIQUE
         else:
-            p = {
-                MutationMode.SAMPLING: 1/4,
-                MutationMode.MUTATION: 3/4,
-                MutationMode.FEEDBACK: 0,
-            }
+            # Check if critique is available for any policy
+            if step > self.config.analysis_steps:
+                p = {
+                    MutationMode.UNCONDITIONAL: 0,
+                    MutationMode.CONDITIONAL: 1/4,
+                    MutationMode.CRITIQUE: 3/4,  # Select a sample with a critique
+                }
+            # Otherwise simply sample conditionally
+            else:
+                p = {
+                    MutationMode.UNCONDITIONAL: 0,
+                    MutationMode.CONDITIONAL: 1,
+                    MutationMode.CRITIQUE: 0,  # Select a sample with a critique
+                }
             p = np.array(list(p.values()))
             p = p / sum(p)
             mutation_mode = np.random.choice(list(MutationMode), p=p)
             return PromptMode.DESIGNER, mutation_mode
+
+    def select_batch(self, prompt_mode, mutation_mode):
+        if prompt_mode == PromptMode.ANALYZER:
+            # If prompt mode is analyzer then want to choose best performing programs without a critique
+            batch = []
+            for _ in range(self.env.batch_size):
+                # Randomly select an island and then select the best program
+                sample = self.database.filtered_best_sample(batch)
+                assert sample is not None
+                batch.append(sample)
+            batch = [[sample] for sample in batch]
+            return batch
+        elif mutation_mode == MutationMode.CRITIQUE:
+            # If mutation mode is critique then want to pick a program that has been critiqued and use that for mutation
+            batch = []
+            for _ in range(self.env.batch_size):
+                programs = self.database.sample_programs(requires_critique=True)
+                assert None not in programs
+                batch.append(programs)
+            return batch
+        else:
+            return [self.random_selection() for _ in range(self.env.batch_size)]
+
+    def update_database(self, 
+                        batch: List[List[Program]], 
+                        outputs: list[dict], 
+                        prompt_mode: PromptMode, 
+                        mutation_mode: MutationMode,):
+        if prompt_mode == PromptMode.ANALYZER:
+            for inp, out in zip(batch, outputs):
+                inp = inp[0]
+                self.database.remove(inp)
+                inp.critique = out["critique"]
+                self.database.add(inp)
+
 
     def search(self, 
                init_steps: int, 
@@ -338,16 +399,21 @@ class FunSearch:
         for n_steps in range(self.start_step, total_steps):
             if n_steps < init_steps:
                 # Initialise by generating initsteps random solutions
-                new_individuals: List[str] = self.env.random()
+                new_individuals: List[dict] = self.env.random()
+                new_individuals = [sample["src"] for sample in new_individuals]
                 # Each initial program spreads to all islandsd
                 island_ids_list = [list(range(len(self.database.islands))) for _ in new_individuals]
             else:
-                # Randomly select a batch of individuals
-                batch: List[List[Program]] = [self.random_selection() for _ in range(self.env.batch_size)]
-                # Next select a mutation mode
-                prompt_mode, mutation_mode = self.choose_mode(n_steps)
+                # Select a mutation mode
+                prompt_mode, mutation_mode = self.choose_prompt_mode(n_steps)
+                # Randomly select a batch of individuals based on mutation mode
+                batch: List[List[Program]] = self.select_batch(prompt_mode, mutation_mode)
                 # Mutate
-                new_individuals: List[str] = self.env.mutate(batch, prompt_mode, mutation_mode)
+                outputs: List[dict] = self.env.mutate(batch, prompt_mode, mutation_mode)
+                # Update database if given feedback from policy analyzer
+                self.update_database(batch, outputs, prompt_mode, mutation_mode)
+                # Retrieve src of new generations
+                new_individuals: List[str] = [sample["src"] for sample in outputs]
                 # Assign island ids equal to ids of prompt exemplars
                 island_ids_list = [[programs[0].island_id] for programs in batch]
 
@@ -373,7 +439,7 @@ class FunSearch:
         self.stats["fitness_runtimes"].append(res["fitness_runtime"])
         if fitness > self.stats["best_fitness"]:
             self.stats["best_fitness"] = fitness
-            self.stats["best_program"] = individual
+            self.stats["best_program"] = individual.src
             self.stats["best_step"] = n_steps
         self.stats["step"] = n_steps
         if n_steps % self.config.log_stats_steps == 0:

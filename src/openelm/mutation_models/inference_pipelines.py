@@ -92,7 +92,10 @@ class ComputeReport(InferenceComponent):
             trajectory_path = sample["trajectory_path"]
             trajectories = self.load_trajectories(trajectory_path)
             report_list = sample.get("report_list", {})
-            sample["report_results"] = compute_reports(trajectories=trajectories, extra_reports=report_list)
+            try:
+                sample["report_results"] = compute_reports(trajectories=trajectories, extra_reports=report_list)
+            except Exception as error:
+                sample["report_results"] = {"error": f"The following error occurred while executing the report:\n{error}"}
         data = jsonl_to_dict(jsonl_batch)
         return data, start
 

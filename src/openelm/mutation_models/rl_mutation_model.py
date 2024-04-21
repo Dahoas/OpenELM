@@ -68,6 +68,7 @@ class PolicyDesigner:
                 if mutation_mode == MutationMode.CONDITIONAL:
                     sample["prompt"] = conditional_prompt
                 elif mutation_mode == MutationMode.CRITIQUE:
+                    assert sample["critique"] is not None
                     sample["prompt"] = designer_prompts["critique_prompt"].format(conditional_prompt=conditional_prompt, critique=sample["critique"])
         return batch
 
@@ -76,7 +77,7 @@ class PolicyDesigner:
         out_batch = self.llm(batch, is_complete_keyword=self.is_complete_keyword)
         responses = [sample["response"] for sample in out_batch]
         policies = [self.extract_src(response) for response in responses]
-        return policies
+        return [{"src": policy} for policy in policies]
 
 
 class PolicyAnalyzer:
@@ -85,7 +86,7 @@ class PolicyAnalyzer:
         logging_path = os.path.join(config.logging_path, "analyzer.jsonl")
         self.critique_pipeline = CritiquePipeline(logging_path)
 
-    def construct_input(batch):
+    def construct_input(self, batch):
         for sample in batch:
             sample["env_description"] = designer_prompts["env_description"].format(**sample)
         return batch
@@ -96,7 +97,7 @@ class PolicyAnalyzer:
         dict_batch = jsonl_to_dict(batch)
         out_batch = dict_to_jsonl(self.critique_pipeline(dict_batch))
         critiques = [sample.get("critique", "") for sample in out_batch]
-        return critiques
+        return [{"critique": critique} for critique in critiques]
 
 
 class RLEnvModel(MutationModel):
@@ -106,18 +107,16 @@ class RLEnvModel(MutationModel):
         self.policy_designer = PolicyDesigner(config)
         self.policy_analyzer = PolicyAnalyzer(config)
 
-
     def generate_programs(self, 
                  sample_dicts: List[dict[str, str]],
                  prompt_mode: PromptMode,
-                 mutation_mode: MutationMode) -> list[str]:
+                 mutation_mode: MutationMode) -> list[dict]:
         self(sample_dicts, prompt_mode, mutation_mode)
-        
 
     def __call__(self, 
                  sample_dicts: List[dict[str, str]],
                  prompt_mode: PromptMode,
-                 mutation_mode: MutationMode) -> list[str]:
+                 mutation_mode: MutationMode) -> list[dict]:
         """
         Generates programs using prompts in prompt_dicts.
         + prompt_dicts: List of dicts with "prompt" field
@@ -125,4 +124,8 @@ class RLEnvModel(MutationModel):
         if prompt_mode == PromptMode.DESIGNER:
             return self.policy_designer(sample_dicts, mutation_mode)
         elif prompt_mode == PromptMode.ANALYZER:
-            return self.policy_analyzer(sample_dicts)
+            critiques = self.policy_analyzer(sample_dicts)
+            sample_dicts = [{**sample_dict, **critique} for sample_dict, critique in zip(sample_dicts, critiques)]
+            policies = self.policy_designer(sample_dicts, MutationMode.CRITIQUE)
+            outputs = [{**policy, **critique} for policy, critique in zip(policies, critiques)]
+            return outputs
