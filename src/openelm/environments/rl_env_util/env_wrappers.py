@@ -22,6 +22,12 @@ class BaseWrapper:
         self.env.render()
 
 
+##### Minigrid #####
+
+
+######## Blocked minigrid ########
+
+
 class MinigridBlockedUnlockPickupWrapper(BaseWrapper):
     def __init__(self, env):
         super(MinigridBlockedUnlockPickupWrapper, self).__init__(env)
@@ -83,6 +89,9 @@ class MinigridBlockedUnlockPickupWrapper(BaseWrapper):
         assert self.door is not None
 
         return observation, _
+
+
+######## UnlockPickup minigrid ########
     
 
 class MinigridUnlockPickupWrapper(BaseWrapper):
@@ -124,6 +133,7 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
             +0.1 if any object is picked up
             +0.2 if door is opened
             +0.1 if gone through door
+            +0.1 if puts down key after going through door
         """
         prev_has_key = self.get_has_key()
         prev_door_open = self.get_door_open()
@@ -169,6 +179,7 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
 
         observation = self.postprocess_obs(observation)
         return observation, _
+
 
 
 def get_wrapped_env(rl_env_name, render_mode):

@@ -331,8 +331,8 @@ class FunSearch:
             # Otherwise simply sample conditionally
             else:
                 p = {
-                    MutationMode.UNCONDITIONAL: 0,
-                    MutationMode.CONDITIONAL: 1,
+                    MutationMode.UNCONDITIONAL: 1/4,
+                    MutationMode.CONDITIONAL: 3/4,
                     MutationMode.CRITIQUE: 0,  # Select a sample with a critique
                 }
             p = np.array(list(p.values()))
