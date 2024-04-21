@@ -27,20 +27,22 @@ You should only write the Policy class and nothing else. \
 You are encouraged to be as creative as possible, do not simply copy one of the exemplars if given. \
 Your policy should also be robust to adversity. If it finds itself getting stuck, repeating the same moves, \
 it should try something new. Think carefully about the order of steps you propose.\n\
-All code should be written in a single, large code block. \
+All code should be written in a single, large python code block. \
 When you are finished with your response you should write {is_complete_keyword} at the very end outside any code blocks.\
 """,
 
     conditional_prompt="""\
 {unconditional_prompt}\n\n\
 Example Policy:\n\n\
-{policy}\
+{policy}\n\n\
+Now write your own policy in a python codeblock.
 """,
 
     critique_prompt="""\
 {conditional_prompt}\n\n\
 Policy critique:\n\n\
-{critique}\
+{critique}\n\n\
+Now write your own policy in a python codeblock incorporating this critique.
 """,
 )
 
