@@ -431,7 +431,7 @@ class FunSearch:
                     continue
                 self.database.add(program)
                 # Update stats
-                self.update_stats(n_steps, individual, res)
+                self.update_stats(n_steps, program, res)
 
     def update_stats(self, n_steps, individual, res):
         fitness = res["fitness"]
