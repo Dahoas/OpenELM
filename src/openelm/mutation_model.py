@@ -174,7 +174,6 @@ class HuggingFaceLLM(LLM):
 
         extra = Extra.allow
 
-    @root_validator
     def setup(cls, values: dict[str, Any]) -> dict[str, Any]:
         """Validate the config."""
         os.environ["TOKENIZERS_PARALLELISM"] = "false"

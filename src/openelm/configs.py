@@ -52,7 +52,9 @@ class DiffModelConfig(ModelConfig):
 @dataclass
 class RLEnvModelConfig(ModelConfig):
     designer_model_path: str = MISSING
+    designer_model_endpoint: Optional[str] = MISSING
     analyzer_model_path: str = MISSING
+    analyzer_model_endpoint: Optional[str] = MISSING
     designer_temp: float = MISSING
     analyzer_temp: float = MISSING
 

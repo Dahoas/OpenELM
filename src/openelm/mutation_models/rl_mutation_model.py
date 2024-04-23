@@ -43,6 +43,7 @@ class PolicyDesigner:
         self.config = config
         logging_path = os.path.join(config.logging_path, "designer.jsonl")
         self.llm = GPT(model_name=config.designer_model_path,
+                       model_endpoint=config.designer_model_endpoint,
                        temperature=config.designer_temp,
                        max_num_tokens=config.gen_max_len,
                        mb_size=config.batch_size,
@@ -60,21 +61,29 @@ class PolicyDesigner:
     def construct_input(self, batch: list, mutation_mode: MutationMode):
         for sample in batch:
             env_description = designer_prompts["env_description"].format(**sample)
-            unconditional_prompt = designer_prompts["unconditional_prompt"].format(env_description=env_description, is_complete_keyword=self.is_complete_keyword)
+            task_prompt = designer_prompts["task_prompt"].format(env_description=env_description)
+            policy_design_advice = designer_prompts["policy_design_advice"].format(is_complete_keyword=self.is_complete_keyword)
             if mutation_mode == MutationMode.UNCONDITIONAL:
+                unconditional_prompt = designer_prompts["unconditional_prompt"].format(task_prompt=task_prompt, 
+                                                                                       policy_design_advice=policy_design_advice)
                 sample["prompt"] = unconditional_prompt
             else:
-                conditional_prompt = designer_prompts["conditional_prompt"].format(unconditional_prompt=unconditional_prompt, policy=sample["policy"])
+                conditional_prompt = designer_prompts["conditional_prompt"].format(task_prompt=task_prompt, 
+                                                                                   policy=sample["policy"], 
+                                                                                   policy_design_advice=policy_design_advice)
                 if mutation_mode == MutationMode.CONDITIONAL:
                     sample["prompt"] = conditional_prompt
                 elif mutation_mode == MutationMode.CRITIQUE:
                     assert sample["critique"] is not None
-                    sample["prompt"] = designer_prompts["critique_prompt"].format(conditional_prompt=conditional_prompt, critique=sample["critique"])
+                    sample["prompt"] = designer_prompts["critique_prompt"].format(task_prompt=task_prompt, 
+                                                                                  policy=sample["policy"], 
+                                                                                  policy_design_advice=policy_design_advice, 
+                                                                                  critique=sample["critique"])
         return batch
 
     def __call__(self, batch: list, mutation_mode: MutationMode):
         batch = self.construct_input(batch, mutation_mode)
-        out_batch = self.llm(batch, is_complete_keyword=self.is_complete_keyword)
+        out_batch = self.llm(batch, is_complete_keywords=[self.is_complete_keyword, "<|eot_id|>"])
         responses = [sample["response"] for sample in out_batch]
         policies = [self.extract_src(response) for response in responses]
         return [{"src": policy} for policy in policies]

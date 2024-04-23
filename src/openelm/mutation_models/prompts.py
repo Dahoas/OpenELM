@@ -11,7 +11,7 @@ Reward description:\n\
 {reward_description}\
 """,
 
-    unconditional_prompt="""\
+    task_prompt="""\
 You are responsible for designing a decision policy to solve an RL task.\
 You will write a python `Policy()`, which should be initializable without any parameters from the user, object which has two methods:
 - `def act(observation)` which takes in an observation and returns an action.
@@ -22,27 +22,39 @@ Note: You should not assume any exploration outside of what is learned during th
 the environment. This means you should not rely on Q-learning, etc.\
 You are allowed to use any python library you want but should not assume access \
 to any other external resources (such as models with downloadable weights) unless otherwise specified.\n\n\
-{env_description}\n\n\
-You should only write the Policy class and nothing else. \
-You are encouraged to be as creative as possible, do not simply copy one of the exemplars if given. \
-Your policy should also be robust to adversity. If it finds itself getting stuck, repeating the same moves, \
-it should try something new. Think carefully about the order of steps you propose.\n\
-All code should be written in a single, large python code block. \
-When you are finished with your response you should write {is_complete_keyword} at the very end outside any code blocks.\
+{env_description}\
+""",
+
+    policy_design_advice="""\
+First you should break the task into a set of sub-problems to solve in natural language. \
+The policy should be modular, with separate sub-routines for solving sub-tasks. \
+All code should be written in a single, large python code block ```python YOUR_CODE```{is_complete_keyword}. \
+There is no need to write code 'testing' the policy after you finish your implementation. \
+Make sure all details for the policy are fully specified. You will be given as much space as you need to finish the implementation. \
+When you are finished with your response you should write {is_complete_keyword} at the very end.\
+""",
+
+    unconditional_prompt="""\
+{task_prompt}\n\n\
+{policy_design_advice}\n\n\
 """,
 
     conditional_prompt="""\
-{unconditional_prompt}\n\n\
+{task_prompt}\n\n\
 Example Policy:\n\n\
 {policy}\n\n\
-Now write your own policy in a python codeblock.
+Now write your own policy in a python codeblock. \
+{policy_design_advice}\n\n\
 """,
 
     critique_prompt="""\
-{conditional_prompt}\n\n\
-Policy critique:\n\n\
+{task_prompt}\n\n\
+Example Policy:\n\n\
+{policy}\n\n\
+Policy critique:\n\
 {critique}\n\n\
-Now write your own policy in a python codeblock incorporating this critique.
+Now write your own policy in a python codeblock incorporating this critique. \
+{policy_design_advice}\n\n\
 """,
 )
 
