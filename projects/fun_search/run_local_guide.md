@@ -29,7 +29,7 @@ AutoModelForCausalLM.from_pretrained(model_path)
 See [here](https://github.com/Dahoas/gpt-query/blob/master/projects/vllm_examples/scripts/local_serve.sh) for an example script hosting quantized Llama-3 70B. 
 This can be run as `bash scripts/local_serve.sh &> llama_logs.txt &`
 
-Run `echo hostname > hostname.txt` to get the endpoint.
+**IMPORTANT**: Run `echo hostname > hostname.txt` to get the endpoint. This is how the FunSearch process communicates with the Llama-3 server.
 
 5. Set correct model name and endpoint in `run_fun_search.py`
 
