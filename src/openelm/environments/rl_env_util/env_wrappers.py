@@ -179,6 +179,22 @@ class MinigridUnlockPickupWrapper(BaseWrapper):
 
         observation = self.postprocess_obs(observation)
         return observation, _
+    
+    
+######## DynamicObstacles minigrid ########
+    
+
+class MinigridDynamicObstaclesWrapper(BaseWrapper):
+    def __init__(self, env):
+        super(MinigridDynamicObstaclesWrapper, self).__init__(env)
+
+    def step(self, action):
+        observation, reward, terminated, _, _ = self.env.step(action)
+        return observation, reward, terminated, _, _
+    
+    def reset(self, seed):
+        observation, _ = self.env.reset(seed=seed)
+        return observation, _
 
 
 
@@ -190,6 +206,8 @@ def get_wrapped_env(rl_env_name, render_mode):
             return MinigridBlockedUnlockPickupWrapper(env)
         elif rl_env_name == "MiniGrid-UnlockPickup-v0":
             return MinigridUnlockPickupWrapper(env)
+        elif rl_env_name == "MiniGrid-Dynamic-Obstacles-8x8-v0":
+            return MinigridDynamicObstaclesWrapper(env)
         else:
             raise ValueError(f"No wrapper found for {rl_env_name}!!!")
     else:

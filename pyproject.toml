@@ -95,3 +95,9 @@ rlenv = [
     "gymnasium",
     "minigrid"
 ]
+
+[tool.poetry]
+name = "openelm"  # Replace with your actual project name
+version = "0.1.0"           # Set the initial version
+description = ""             # Provide a brief description
+authors = ["Your Name <your-email@example.com>"] 

@@ -54,7 +54,7 @@ class PolicyDesigner:
     def extract_src(self, response: str):
         try:
             response = response.replace(self.is_complete_keyword, "")
-            return re.findall(r"```python\n([^`]*)```", response)[-1]
+            return re.findall(r"```\n?(python)?\n?([^`]*)```", response)[-1][1]
         except IndexError:
             return ""
 

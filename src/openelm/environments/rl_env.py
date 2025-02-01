@@ -224,10 +224,14 @@ class ELMRLEnv(BaseEnvironment[PolicyGenotype]):
         # Recover trajectory data
         trajectory_files = pathlib.Path(self.scratch_dir).glob("*.json")
         trajectories = []
-        for trajectory in trajectory_files:
-            with open(trajectory, "r") as f:
-                trajectory = json.load(f)
-            trajectories.append(trajectory)
+        try:
+            for trajectory in trajectory_files:
+                with open(trajectory, "r") as f:
+                    trajectory = json.load(f)
+                trajectories.append(trajectory)
+        except Exception:
+            fitness = -100.0
+            trajectories = []
         # Save trajectory data to file
         trajectory_path = os.path.join(self.trajectories_dir, f"{str(uuid.uuid4())}.json")
         robust_dump_json(trajectories, trajectory_path)

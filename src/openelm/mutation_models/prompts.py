@@ -26,12 +26,11 @@ to any other external resources (such as models with downloadable weights) unles
 """,
 
     policy_design_advice="""\
-First you should break the task into a set of sub-problems to solve in natural language. \
-The policy should be modular, with separate sub-routines for solving sub-tasks. \
-All code should be written in a single, large python code block ```python YOUR_CODE```{is_complete_keyword}. \
 There is no need to write code 'testing' the policy after you finish your implementation. \
 Make sure all details for the policy are fully specified. You will be given as much space as you need to finish the implementation. \
+Make sure the policy does a good job exploring the environment and does not get stuck. \
 When you are finished with your response you should write {is_complete_keyword} at the very end.\
+All code should be written in a single, large python code block ```python YOUR_CODE```{is_complete_keyword}. \
 """,
 
     unconditional_prompt="""\

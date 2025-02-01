@@ -19,31 +19,40 @@ from openelm.configs import RLEnvModelConfig, FunSearchConfig, RLEnvConfig, Fitn
 from openelm.environments.rl_env_util.rl_env_descriptions import envs
 
 import os
+import json
+
+import socket
+from time import sleep
 
 
 @hydra.main(
     config_name="elmconfig",
 )
 def main(config):
-    rl_env_name = "MiniGrid-UnlockPickup-v0-wrapped"
+    sleep_time = 180
+    sleep(sleep_time)
+    rl_env_name = "MiniGrid-Dynamic-Obstacles-8x8-v0" #"MiniGrid-UnlockPickup-v0-wrapped"  # MiniGrid-Dynamic-Obstacles-8x8-v0
+    batch_size = 1
     config.output_dir = HydraConfig.get().runtime.output_dir
+    hostname = socket.gethostname()
     config.model = RLEnvModelConfig(model_type="gptquery",
-                                    designer_model_path="openai/meta-llama/Meta-Llama-3-8B-Instruct", #"gpt-4-0125-preview",  # gpt-3.5-turbo-0125, # claude-3-haiku-20240307
-                                    designer_model_endpoint="http://atl1-1-03-006-5-0:8000/v1",
+                                    designer_model_path="openai/casperhansen/llama-3-70b-instruct-awq",#"openai/casperhansen/llama-3-70b-instruct-awq", #"gpt-4-0125-preview",  # gpt-3.5-turbo-0125, # claude-3-haiku-20240307
+                                    designer_model_endpoint=f"http://{hostname}:8000/v1", #"http://atl1-1-03-006-9:8000/v1",
                                     analyzer_model_path="gpt-4-turbo",
                                     analyzer_model_endpoint=None,
                                     designer_temp=1.0,
                                     analyzer_temp=0.3,
                                     gen_max_len=4096,
-                                    batch_size=1,
+                                    batch_size=batch_size,
                                     model_path="",)
-    total_steps = 250
-    init_steps = 10
-    analysis_steps = 500
-    seed_policies_dir = None #"/storage/home/hcoda1/6/ahavrilla3/p-wliao60/alex/repos/OpenELM/projects/fun_search/init_policies/door_key/jsonls/init.jsonl"
+    total_steps = 512
+    init_steps = 32 #512 #32
+    analysis_steps = 512
+    #seed_policies_dir = "/storage/home/hcoda1/6/ahavrilla3/p-wliao60/alex/repos/OpenELM/projects/fun_search/logs/elm/24-05-25_00:06/database.jsonl" #"/storage/home/hcoda1/6/ahavrilla3/p-wliao60/alex/repos/OpenELM/projects/fun_search/init_policies/door_key/jsonls/init.jsonl"
+    seed_policies_dir = None
     database_config = dict(functions_per_prompt=1,
                            num_islands=5,
-                           reset_period=25,
+                           reset_period=64,
                            cluster_sampling_temperature_init=0.1,
                            cluster_sampling_temperature_period=30_000,)
     config.qd = FunSearchConfig(total_steps=total_steps, 
@@ -59,6 +68,7 @@ def main(config):
     rl_env_name_t = rl_env_name
     rl_env_name = rl_env_name.replace("-wrapped", "")
     config.env = RLEnvConfig(rl_env_name=rl_env_name_t,
+                             batch_size=batch_size,
                              task_type="policy",
                              task_description=envs[rl_env_name]["task_description"],
                              observation_description=envs[rl_env_name]["observation_description"],
@@ -72,6 +82,8 @@ def main(config):
 
     print("----------------- Config ---------------")
     print(OmegaConf.to_yaml(config))
+    with open(os.path.join(config.output_dir, "config.json"), "w") as f:
+        json.dump(OmegaConf.to_container(config, resolve=True), f, indent=2)
     print("-----------------  End -----------------")
     config = OmegaConf.to_object(config)
 

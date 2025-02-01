@@ -86,6 +86,7 @@ class Database:
                  config.cluster_sampling_temperature_period,))
 
     self.tot_programs = 0
+    self.num_critique_programs = 0
 
   def log(self, 
           program: Program,):
@@ -115,6 +116,8 @@ class Database:
         self.islands[island_id].add(island_program)
 
     self.tot_programs += 1
+    if program.critique is not None:
+        self.num_critique_programs += 1
     # Check whether it is time to reset an island.
     if (self.tot_programs + 1) % self.config.reset_period == 0:
       self.reset_islands()
@@ -322,11 +325,11 @@ class FunSearch:
             return PromptMode.ANALYZER, MutationMode.CRITIQUE
         else:
             # Check if critique is available for any policy
-            if step > self.config.analysis_steps:
+            if self.database.num_critique_programs > 0:
                 p = {
                     MutationMode.UNCONDITIONAL: 0,
-                    MutationMode.CONDITIONAL: 1/4,
-                    MutationMode.CRITIQUE: 3/4,  # Select a sample with a critique
+                    MutationMode.CONDITIONAL: 1/2,
+                    MutationMode.CRITIQUE: 1/2,  # Select a sample with a critique
                 }
             # Otherwise simply sample conditionally
             else:
